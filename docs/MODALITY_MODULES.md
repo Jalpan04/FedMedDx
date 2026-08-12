@@ -1,6 +1,6 @@
 # FedMedDx Modality Module Developer Guide
 
-This guide is for Persons 1–4 building `cxr_module.py`, `skin_module.py`, `mri_module.py`, and `retina_module.py`.
+This guide is for Priyanka, Gargee, Smit, and Hirva building `cxr_module.py`, `skin_module.py`, `mri_module.py`, and `retina_module.py`.
 
 ---
 

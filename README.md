@@ -9,10 +9,10 @@ FedMedDx is a federated diagnostic framework supporting 4 medical imaging modali
 | Role | Owner | Sub-module Path | Primary Deliverables |
 | :--- | :--- | :--- | :--- |
 | **Federated Learning Core** | Jalpan (Core Lead) | `federated/` | Client wrapper, FedAvg, FedProx, DP, SecAgg+, Demo App & Dashboard |
-| **Chest X-ray (CXR)** | Person 1 | `modules/cxr_module.py` | 4-class COVID/Pneumonia classifier, Dirichlet splits, Grad-CAM |
-| **Skin Lesion** | Person 2 | `modules/skin_cancer.py` | 7-class HAM10000 classifier, Grouped Lesion split, Grad-CAM |
-| **Brain MRI** | Person 3 | `modules/mri_module.py` | 4-class Brain Tumor classifier, Continual Learning attempt, Grad-CAM |
-| **Retinal Fundus** | Person 4 | `modules/retina_module.py` | 5-grade DR Severity classifier, Ben Graham preprocessing, Grad-CAM |
+| **Chest X-ray (CXR)** | Priyanka | `modules/cxr_module.py` | 4-class COVID/Pneumonia classifier, Dirichlet splits, Grad-CAM |
+| **Skin Lesion** | Gargee | `modules/skin_cancer.py` | 7-class HAM10000 classifier, Grouped Lesion split, Grad-CAM |
+| **Brain MRI** | Smit | `modules/mri_module.py` | 4-class Brain Tumor classifier, Continual Learning attempt, Grad-CAM |
+| **Retinal Fundus** | Hirva | `modules/retina_module.py` | 5-grade DR Severity classifier, Ben Graham preprocessing, Grad-CAM |
 
 ---
 
@@ -53,25 +53,25 @@ pip install -r requirements.txt
 
 ### Step 4: Dataset Download Commands
 
-#### Person 1 (Chest X-ray)
+#### Priyanka (Chest X-ray)
 ```bash
 kaggle datasets download -d tawsifurrahman/covid19-radiography-database
 unzip covid19-radiography-database.zip -d data/cxr
 ```
 
-#### Person 2 (Skin Lesion)
+#### Gargee (Skin Lesion)
 ```bash
 kaggle datasets download -d kmader/skin-cancer-mnist-ham10000
 unzip skin-cancer-mnist-ham10000.zip -d data/skin
 ```
 
-#### Person 3 (Brain MRI)
+#### Smit (Brain MRI)
 ```bash
 kaggle datasets download -d masoudnickparvar/brain-tumor-mri-dataset
 unzip brain-tumor-mri-dataset.zip -d data/mri
 ```
 
-#### Person 4 (Retinal Fundus)
+#### Hirva (Retinal Fundus)
 > Note: Accept competition rules at `https://kaggle.com/c/aptos2019-blindness-detection` first!
 ```bash
 kaggle competitions download -c aptos2019-blindness-detection
@@ -99,10 +99,10 @@ FedMedDx/
 │   ├── mri/
 │   └── retina/
 ├── modules/                     <- Modality implementations
-│   ├── cxr_module.py            <- Person 1
-│   ├── skin_module.py           <- Person 2
-│   ├── mri_module.py            <- Person 3
-│   └── retina_module.py         <- Person 4
+│   ├── cxr_module.py            <- Priyanka
+│   ├── skin_module.py           <- Gargee
+│   ├── mri_module.py            <- Smit
+│   └── retina_module.py         <- Hirva
 ├── federated/                   <- Core FL infrastructure
 │   ├── db.py                    <- SQLite metric tracker
 │   ├── dummy_module.py          <- Mock module for testing

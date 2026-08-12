@@ -1,6 +1,6 @@
-# Chest X-Ray (CXR) Modality — Person 1 Execution Guide
+# Chest X-Ray (CXR) Modality — Priyanka Execution Guide
 
-**Role Owner**: Person 1  
+**Role Owner**: Priyanka  
 **Target Modality**: Chest X-ray Classification  
 **Target Module File**: `modules/cxr/cxr_module.py`  
 **Dataset Target Directory**: `data/cxr/`

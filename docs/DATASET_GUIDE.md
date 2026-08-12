@@ -6,7 +6,7 @@ This document specifies data download paths, image resolutions, class distributi
 
 ## 1. Modality Specifications
 
-### Modality 1: Chest X-ray (Person 1)
+### Modality 1: Chest X-ray (Priyanka)
 - **Dataset**: COVID-19 Radiography Database
 - **Classes**: 4 classes (`COVID-19`, `Normal`, `Lung Opacity`, `Viral Pneumonia`)
 - **Image Count**: ~21,165 images
@@ -19,7 +19,7 @@ This document specifies data download paths, image resolutions, class distributi
 
 ---
 
-### Modality 2: Skin Lesion (Person 2)
+### Modality 2: Skin Lesion (Gargee)
 - **Dataset**: HAM10000 (Skin Cancer MNIST)
 - **Classes**: 7 classes (`akiec`, `bcc`, `bkl`, `df`, `mel`, `nv`, `vasc`)
 - **Image Count**: 10,015 images
@@ -33,7 +33,7 @@ This document specifies data download paths, image resolutions, class distributi
 
 ---
 
-### Modality 3: Brain MRI (Person 3)
+### Modality 3: Brain MRI (Smit)
 - **Dataset**: Brain Tumor MRI Dataset
 - **Classes**: 4 classes (`glioma`, `meningioma`, `notumor`, `pituitary`)
 - **Image Count**: 7,023 images
@@ -46,7 +46,7 @@ This document specifies data download paths, image resolutions, class distributi
 
 ---
 
-### Modality 4: Retinal Fundus (Person 4)
+### Modality 4: Retinal Fundus (Hirva)
 - **Dataset**: APTOS 2019 Blindness Detection
 - **Classes**: 5 severity grades (`0: No DR`, `1: Mild`, `2: Moderate`, `3: Severe`, `4: Proliferative DR`)
 - **Image Count**: 3,662 images

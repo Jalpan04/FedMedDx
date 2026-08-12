@@ -1,6 +1,6 @@
-# Brain MRI Modality — Person 3 Execution Guide
+# Brain MRI Modality — Smit Execution Guide
 
-**Role Owner**: Person 3  
+**Role Owner**: Smit  
 **Target Modality**: Brain Tumor MRI Classification (+ Continual Learning stretch goal)  
 **Target Module File**: `modules/mri/mri_module.py`  
 **Dataset Target Directory**: `data/mri/`

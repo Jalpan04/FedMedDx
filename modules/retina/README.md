@@ -1,6 +1,6 @@
-# Retinal Fundus (APTOS 2019) Modality — Person 4 Execution Guide
+# Retinal Fundus (APTOS 2019) Modality — Hirva Execution Guide
 
-**Role Owner**: Person 4  
+**Role Owner**: Hirva  
 **Target Modality**: Retinal Fundus Diabetic Retinopathy Classification  
 **Target Module File**: `modules/retina/retina_module.py`  
 **Dataset Target Directory**: `data/retina/`

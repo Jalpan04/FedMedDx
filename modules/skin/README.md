@@ -1,6 +1,6 @@
-# Skin Lesion (HAM10000) Modality — Person 2 Execution Guide
+# Skin Lesion (HAM10000) Modality — Gargee Execution Guide
 
-**Role Owner**: Person 2  
+**Role Owner**: Gargee  
 **Target Modality**: Skin Lesion Classification  
 **Target Module File**: `modules/skin/skin_module.py`  
 **Dataset Target Directory**: `data/skin/`
