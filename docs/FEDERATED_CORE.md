@@ -77,28 +77,25 @@ SecAgg+ cryptographic protocol using `SecAggPlusWorkflow` on server and `secaggp
 
 ---
 
-## 4. Distributed Multi-Machine Run via ngrok
+## 4. Distributed Multi-Machine Run via Local Wi-Fi
 
-To deploy the federated learning network across physically separated developer machines, the architecture transitions from simulation mode to standalone distributed execution:
+To deploy the federated learning network across physically separated developer machines connected to the same local Wi-Fi network, the architecture transitions from simulation mode to standalone distributed execution:
 
 ### Architecture
-- **Centralized Server (`federated/server.py`)**: Runs on the coordinator's PC. Listens on a local port (e.g. `8080`) and aggregates model updates from clients.
-- **ngrok TCP Tunnel**: Exposes the local server port to a public TCP domain (e.g., `0.tcp.ngrok.io:12345`) over the internet.
-- **Independent Clients (`federated/client.py`)**: Runs on remote developer nodes. Each client loads its respective modality module and connects to the server via the public ngrok address.
+- **Centralized Server (`federated/server.py`)**: Runs on the coordinator's PC (Jalpan). Listens on a local port (e.g. `8080`) and aggregates model updates from clients.
+- **Local Network gRPC Route**: Clients connect directly to the server's local IPv4 Address (e.g., `10.246.11.202:8080`) on the same local network.
 
 ### Run Instructions
 
 #### Coordinator (Jalpan)
+1. Find your Wi-Fi IPv4 address using `ipconfig` (currently: `10.246.11.202`).
+2. Start the standalone server:
 ```bash
-# Start standalone server
 python -m federated.server --port 8080 --rounds 20 --min_clients 4
-
-# Run ngrok tunnel
-ngrok tcp 8080
 ```
 
-#### Modality Developers
-Join the server using the generated ngrok TCP link:
+#### Modality Developers (Priyanka, Gargee, Smit, Hirva)
+Ensure you are connected to the same Wi-Fi network, and start your client pointing to the server's local IP address:
 ```bash
-python -m federated.client --server <NGROK_ADDRESS> --modality <MODALITY> --hospital_id <INDEX>
+python -m federated.client --server 10.246.11.202:8080 --modality <MODALITY> --hospital_id <INDEX>
 ```

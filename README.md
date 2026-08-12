@@ -142,31 +142,29 @@ streamlit run demo/app.py
 streamlit run demo/dashboard.py
 ```
 
-### Distributed Multi-Machine Run via ngrok (Real Network)
+### Distributed Multi-Machine Run via Local Wi-Fi (Real Network)
 **Server Setup (Jalpan's Machine)**:
-```bash
-# Start Flower Server
-python -m federated.server --port 8080 --rounds 20 --min_clients 4
-
-# Expose port 8080 via ngrok in another terminal
-ngrok tcp 8080
-```
-Copy the public TCP address from ngrok output (e.g., `0.tcp.ngrok.io:12345`).
+1. Find your server IP address using `ipconfig` (currently: `10.246.11.202`).
+2. Start the Flower Server:
+   ```bash
+   python -m federated.server --port 8080 --rounds 20 --min_clients 4
+   ```
+   *Note: If prompted, allow Python network access in Windows Defender Firewall.*
 
 **Client Setup (Friends' Machines)**:
-Replace `0.tcp.ngrok.io:12345` with the server's ngrok address:
+Ensure all clients are connected to the same Wi-Fi network and run their client scripts pointing to the server's IP address:
 ```bash
 # Priyanka (CXR)
-python -m federated.client --server 0.tcp.ngrok.io:12345 --modality cxr --hospital_id 0
+python -m federated.client --server 10.246.11.202:8080 --modality cxr --hospital_id 0
 
 # Gargee (Skin)
-python -m federated.client --server 0.tcp.ngrok.io:12345 --modality skin --hospital_id 1
+python -m federated.client --server 10.246.11.202:8080 --modality skin --hospital_id 1
 
 # Smit (MRI)
-python -m federated.client --server 0.tcp.ngrok.io:12345 --modality mri --hospital_id 2
+python -m federated.client --server 10.246.11.202:8080 --modality mri --hospital_id 2
 
 # Hirva (Retina)
-python -m federated.client --server 0.tcp.ngrok.io:12345 --modality retina --hospital_id 3
+python -m federated.client --server 10.246.11.202:8080 --modality retina --hospital_id 3
 ```
 
 ---
