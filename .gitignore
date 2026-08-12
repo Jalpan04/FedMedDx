@@ -1,0 +1,39 @@
+# Datasets & raw images
+data/*
+!data/.gitkeep
+
+# Results & SQLite DB artifacts
+results/*.png
+results/*.json
+results/*.csv
+results/*.db
+results/*/*.png
+results/*/*.json
+results/*/*.csv
+
+# Python byte-code & virtualenvs
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+ENV/
+
+# PyTorch Checkpoints & Models
+*.pt
+*.pth
+*.onnx
+
+# Streamlit
+.streamlit/
+
+# Kaggle API tokens
+kaggle.json
+.kaggle/
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
