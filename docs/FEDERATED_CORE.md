@@ -74,3 +74,31 @@ Client-side fixed clipping and Gaussian noise injection via `flwr.server.strateg
 
 ### Secure Aggregation (`run_secagg.py`)
 SecAgg+ cryptographic protocol using `SecAggPlusWorkflow` on server and `secaggplus_mod` on clients to protect updates from server inspection.
+
+---
+
+## 4. Distributed Multi-Machine Run via ngrok
+
+To deploy the federated learning network across physically separated developer machines, the architecture transitions from simulation mode to standalone distributed execution:
+
+### Architecture
+- **Centralized Server (`federated/server.py`)**: Runs on the coordinator's PC. Listens on a local port (e.g. `8080`) and aggregates model updates from clients.
+- **ngrok TCP Tunnel**: Exposes the local server port to a public TCP domain (e.g., `0.tcp.ngrok.io:12345`) over the internet.
+- **Independent Clients (`federated/client.py`)**: Runs on remote developer nodes. Each client loads its respective modality module and connects to the server via the public ngrok address.
+
+### Run Instructions
+
+#### Coordinator (Jalpan)
+```bash
+# Start standalone server
+python -m federated.server --port 8080 --rounds 20 --min_clients 4
+
+# Run ngrok tunnel
+ngrok tcp 8080
+```
+
+#### Modality Developers
+Join the server using the generated ngrok TCP link:
+```bash
+python -m federated.client --server <NGROK_ADDRESS> --modality <MODALITY> --hospital_id <INDEX>
+```

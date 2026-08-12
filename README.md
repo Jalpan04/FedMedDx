@@ -142,6 +142,33 @@ streamlit run demo/app.py
 streamlit run demo/dashboard.py
 ```
 
+### Distributed Multi-Machine Run via ngrok (Real Network)
+**Server Setup (Jalpan's Machine)**:
+```bash
+# Start Flower Server
+python -m federated.server --port 8080 --rounds 20 --min_clients 4
+
+# Expose port 8080 via ngrok in another terminal
+ngrok tcp 8080
+```
+Copy the public TCP address from ngrok output (e.g., `0.tcp.ngrok.io:12345`).
+
+**Client Setup (Friends' Machines)**:
+Replace `0.tcp.ngrok.io:12345` with the server's ngrok address:
+```bash
+# Priyanka (CXR)
+python -m federated.client --server 0.tcp.ngrok.io:12345 --modality cxr --hospital_id 0
+
+# Gargee (Skin)
+python -m federated.client --server 0.tcp.ngrok.io:12345 --modality skin --hospital_id 1
+
+# Smit (MRI)
+python -m federated.client --server 0.tcp.ngrok.io:12345 --modality mri --hospital_id 2
+
+# Hirva (Retina)
+python -m federated.client --server 0.tcp.ngrok.io:12345 --modality retina --hospital_id 3
+```
+
 ---
 
 ## 6. Development Workflow & Contribution Guidelines
