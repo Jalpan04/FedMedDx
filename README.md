@@ -8,7 +8,7 @@ FedMedDx is a federated diagnostic framework supporting 4 medical imaging modali
 
 | Role | Owner | Sub-module Path | Primary Deliverables |
 | :--- | :--- | :--- | :--- |
-| **Federated Learning Core** | You (Core Lead) | `federated/` | Client wrapper, FedAvg, FedProx, DP, SecAgg+, Demo App & Dashboard |
+| **Federated Learning Core** | Jalpan (Core Lead) | `federated/` | Client wrapper, FedAvg, FedProx, DP, SecAgg+, Demo App & Dashboard |
 | **Chest X-ray (CXR)** | Person 1 | `modules/cxr_module.py` | 4-class COVID/Pneumonia classifier, Dirichlet splits, Grad-CAM |
 | **Skin Lesion** | Person 2 | `modules/skin_cancer.py` | 7-class HAM10000 classifier, Grouped Lesion split, Grad-CAM |
 | **Brain MRI** | Person 3 | `modules/mri_module.py` | 4-class Brain Tumor classifier, Continual Learning attempt, Grad-CAM |
