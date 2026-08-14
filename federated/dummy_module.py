@@ -5,15 +5,22 @@ from typing import Dict, Tuple, List
 import numpy as np
 
 class DummyModel(nn.Module):
-    def __init__(self, in_features=10, num_classes=2):
+    def __init__(self, in_features=10, hidden_dim=32, num_classes=2):
         super().__init__()
-        self.fc = nn.Linear(in_features, num_classes)
+        # Backbone layers
+        self.backbone = nn.Sequential(
+            nn.Linear(in_features, hidden_dim),
+            nn.ReLU(),
+        )
+        # Local classification head
+        self.fc = nn.Linear(hidden_dim, num_classes)
         
     def forward(self, x):
-        return self.fc(x)
+        features = self.backbone(x)
+        return self.fc(features)
 
 def get_model() -> torch.nn.Module:
-    """Returns clean DummyModel instance."""
+    """Returns clean DummyModel instance with distinct backbone and head."""
     return DummyModel()
 
 def get_hospital_partitions(num_hospitals: int = 3, alpha: float = 0.5) -> List[Tuple[DataLoader, DataLoader]]:
@@ -80,11 +87,15 @@ def evaluate(model: torch.nn.Module, val_loader: DataLoader, device: str) -> Tup
     return avg_loss, {"accuracy": acc, "f1_macro": acc, "auc_ovr": acc}
 
 def explain(model: torch.nn.Module, image: torch.Tensor, device: str) -> Tuple[int, float, np.ndarray]:
-    """Mock Grad-CAM explanation returning dummy overlay array."""
+    """Mock explanation returning dummy overlay array."""
     model.to(device)
     model.eval()
     with torch.no_grad():
-        logits = model(image.unsqueeze(0).to(device))
+        if image.dim() == 1:
+            input_tensor = image.unsqueeze(0).to(device)
+        else:
+            input_tensor = image.to(device)
+        logits = model(input_tensor)
         probs = torch.softmax(logits, dim=1)
         conf, pred = torch.max(probs, dim=1)
         

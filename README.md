@@ -1,180 +1,165 @@
-# FedMedDx — Federated Learning for Multi-Modal Medical Diagnostics
+# FedMedDx: Multi-Disease Representation Learning on Unified Chest Radiography
 
-FedMedDx is a federated diagnostic framework supporting 4 medical imaging modalities (Chest X-ray, Skin Lesion, Brain MRI, Retinal Fundus) with Non-IID Dirichlet hospital partitioning, explainable AI (Grad-CAM), Differential Privacy, Secure Aggregation, and interactive Streamlit web applications.
+FedMedDx is a decentralized, privacy-preserving medical imaging platform. It leverages **Personalized Federated Learning (pFL)**, combining **FedRep** (Federated Representation Learning) and **FedBN** (Federated Batch Normalization) over a unified **Chest X-Ray (CXR)** modality.
+
+Participating hospital nodes collaboratively train a shared **ResNet-18** feature-extraction backbone to learn universal pulmonary visual primitives (infiltrates, consolidations, opacities, pleural thickening) across diverse datasets, while keeping specialized disease classification heads local and private to each hospital.
 
 ---
 
-## 1. Team & Responsibilities
+## 1. Team Roles & Disease Allocations
 
-| Role | Owner | Sub-module Path | Primary Deliverables |
+| Role / Owner | Assigned Disease Task | Dataset | Target Output |
 | :--- | :--- | :--- | :--- |
-| **Federated Learning Core** | Jalpan (Core Lead) | `federated/` | Client wrapper, FedAvg, FedProx, DP, SecAgg+, Demo App & Dashboard |
-| **Chest X-ray (CXR)** | Priyanka | `modules/cxr_module.py` | 4-class COVID/Pneumonia classifier, Dirichlet splits, Grad-CAM |
-| **Skin Lesion** | Gargee | `modules/skin_cancer.py` | 7-class HAM10000 classifier, Grouped Lesion split, Grad-CAM |
-| **Brain MRI** | Smit | `modules/mri_module.py` | 4-class Brain Tumor classifier, Continual Learning attempt, Grad-CAM |
-| **Retinal Fundus** | Hirva | `modules/retina_module.py` | 5-grade DR Severity classifier, Ben Graham preprocessing, Grad-CAM |
+| **Jalpan (Core Lead)** | Federated Core Coordinator | Server & Client Engine | FedRep + FedBN Aggregator |
+| **Priyanka (Client 1)** | COVID-19 Radiography | `tawsifurrahman/covid19-radiography-database` | 4 Classes (`COVID-19`, `Normal`, `Lung Opacity`, `Viral Pneumonia`) |
+| **Gargee (Client 2)** | Pneumonia Detection | `paultimothymooney/chest-xray-pneumonia` | Binary (`NORMAL`, `PNEUMONIA`) |
+| **Smit (Client 3)** | Tuberculosis Screening | `tawsifurrahman/tuberculosis-tb-chest-xray-dataset` | Binary (`Normal`, `Tuberculosis`) |
+| **Hirva (Client 4)** | Pneumothorax Detection | `vsereda/chest-xray-pneumothorax-dataset` | Binary (`Normal`, `Pneumothorax`) |
 
 ---
 
-## 2. Tech Stack & Environment Requirements
+## 2. Technical Architecture: FedRep + FedBN
 
-- **Python**: 3.10+
-- **Federated Framework**: `flwr[simulation]` (Flower Virtual Client Engine)
-- **Model Backbone**: `torch`, `torchvision` (ResNet18)
-- **Explainability**: `pytorch-grad-cam`
-- **Metrics**: `scikit-learn`
-- **Web App & Dashboard**: `streamlit`
-- **Dataset Retrieval**: `kaggle` CLI
-- **Database Tracker**: `sqlite3`
-
----
-
-## 3. Quick Setup Instructions
-
-### Step 1: Clone Repository
-```bash
-git clone https://github.com/Jalpan04/FedMedDx.git
-cd FedMedDx
+```
+                      ┌────────────────────────────────────────┐
+                      │    Central Server (Jalpan)             │
+                      │  Aggregates ResNet-18 Backbone via     │
+                      │  FedRep (Excludes Heads and Batch Norm)│
+                      └───────────────────┬────────────────────┘
+                                          │
+        ┌─────────────────────────────────┼─────────────────────────────────┐
+        ▼                                 ▼                                 ▼
+┌──────────────────┐            ┌──────────────────┐            ┌──────────────────┐
+│   Priyanka       │            │   Gargee         │            │   Smit / Hirva   │
+│ Task: COVID-19   │            │ Task: Pneumonia  │            │ Task: TB /       │
+│ (4-Class Head)   │            │ (Binary Head)    │            │ Pneumothorax     │
+│ Local Checkpoint │            │ Local Checkpoint │            │ Local Checkpoint │
+└──────────────────┘            └──────────────────┘            └──────────────────┘
 ```
 
-### Step 2: Install Dependencies (Everyone)
+1. **Shared Global Backbone**: ResNet-18 convolutional layers (`conv1` through `layer4`) learn universal medical image features collaboratively.
+2. **Persistent Local Heads**: Task classification layers ($W_{fc}$) remain 100% private to each client PC and are cached across communication rounds.
+3. **Local Batch Normalization (FedBN)**: Batch norm running statistics are kept local to eliminate domain drift across disparate imaging sources.
+
+---
+
+## 3. Quickstart & Installation
+
+### Local Environment Setup
 ```bash
+# Clone the repository
+git clone https://github.com/Jalpan04/FedMedDx.git
+cd FedMedDx
+
+# Create and activate virtual environment
+python -m venv .venv
+.\.venv\Scripts\activate   # Windows PowerShell
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### Step 3: Kaggle API Setup (Everyone)
-1. Go to `kaggle.com/settings` -> API -> Create New Token (downloads `kaggle.json`).
-2. Move token to home directory:
-   ```bash
-   mkdir -p ~/.kaggle
-   mv ~/Downloads/kaggle.json ~/.kaggle/
-   chmod 600 ~/.kaggle/kaggle.json
-   ```
+---
 
-### Step 4: Dataset Download Commands
+## 4. Dataset Download Commands
 
-#### Priyanka (Chest X-ray)
+### Priyanka (COVID-19 Radiography)
 ```bash
+mkdir -p data/covid
+cd data/covid
 kaggle datasets download -d tawsifurrahman/covid19-radiography-database
-unzip covid19-radiography-database.zip -d data/cxr
+unzip -q covid19-radiography-database.zip
+cd ../..
 ```
 
-#### Gargee (Skin Lesion)
+### Gargee (Pneumonia)
 ```bash
-kaggle datasets download -d kmader/skin-cancer-mnist-ham10000
-unzip skin-cancer-mnist-ham10000.zip -d data/skin
+mkdir -p data/pneumonia
+cd data/pneumonia
+kaggle datasets download -d paultimothymooney/chest-xray-pneumonia
+unzip -q chest-xray-pneumonia.zip
+cd ../..
 ```
 
-#### Smit (Brain MRI)
+### Smit (Tuberculosis)
 ```bash
-kaggle datasets download -d masoudnickparvar/brain-tumor-mri-dataset
-unzip brain-tumor-mri-dataset.zip -d data/mri
+mkdir -p data/tb
+cd data/tb
+kaggle datasets download -d tawsifurrahman/tuberculosis-tb-chest-xray-dataset
+unzip -q tuberculosis-tb-chest-xray-dataset.zip
+cd ../..
 ```
 
-#### Hirva (Retinal Fundus)
-> Note: Accept competition rules at `https://kaggle.com/c/aptos2019-blindness-detection` first!
+### Hirva (Pneumothorax)
 ```bash
-kaggle competitions download -c aptos2019-blindness-detection
-unzip aptos2019-blindness-detection.zip -d data/retina
+mkdir -p data/pneumothorax
+cd data/pneumothorax
+kaggle datasets download -d vsereda/chest-xray-pneumothorax-dataset
+unzip -q chest-xray-pneumothorax-dataset.zip
+cd ../..
 ```
 
 ---
 
-## 4. Directory Structure
+## 5. Execution & Federated Training
 
-```
-FedMedDx/
-├── CONTRACT.md                  <- Immutable modality interface spec
-├── README.md                    <- Main onboarding guide
-├── requirements.txt             <- Project dependencies
-├── docs/                        <- Team documentation wiki suite
-│   ├── SETUP_GUIDE.md           <- Environment & CUDA setup
-│   ├── DATASET_GUIDE.md         <- Download & preprocessing details
-│   ├── FEDERATED_CORE.md        <- Flower simulation execution guide
-│   ├── MODALITY_MODULES.md      <- Modality module developer guide
-│   └── DATABASE_SCHEMA.md       <- Experiment tracking DB schema
-├── data/                        <- Local datasets (gitignored)
-│   ├── cxr/
-│   ├── skin/
-│   ├── mri/
-│   └── retina/
-├── modules/                     <- Modality implementations
-│   ├── cxr_module.py            <- Priyanka
-│   ├── skin_module.py           <- Gargee
-│   ├── mri_module.py            <- Smit
-│   └── retina_module.py         <- Hirva
-├── federated/                   <- Core FL infrastructure
-│   ├── db.py                    <- SQLite metric tracker
-│   ├── dummy_module.py          <- Mock module for testing
-│   ├── client_wrapper.py        <- Generic Flower NumPyClient wrapper
-│   ├── run_fedavg.py            <- FedAvg simulation script
-│   ├── run_fedprox.py           <- FedProx strategy script
-│   ├── run_dp.py                <- Differential Privacy script
-│   └── run_secagg.py            <- Secure Aggregation script
-├── results/                     <- Output metrics, DB, & heatmaps
-│   └── fedmeddx_experiments.db  <- SQLite metrics DB
-└── demo/                        <- Streamlit applications
-    ├── app.py                   <- Patient diagnostic app
-    └── dashboard.py             <- Hospital analytics dashboard
-```
+### Distributed Multi-Machine Run via Local Wi-Fi / LAN
 
----
-
-## 5. Execution Commands
-
-### Running Federated Simulation on Dummy Module (Day 1 Self-Test)
-```bash
-python federated/run_fedavg.py --modality dummy --num_hospitals 3 --rounds 3
-```
-
-### Running Federated Simulation on CXR Module
-```bash
-python federated/run_fedavg.py --modality cxr --num_hospitals 5 --alpha 0.5 --rounds 20
-```
-
-### Launching Streamlit Patient Demo
-```bash
-streamlit run demo/app.py
-```
-
-### Launching Hospital Dashboard
-```bash
-streamlit run demo/dashboard.py
-```
-
-### Distributed Multi-Machine Run via Local Wi-Fi (Real Network)
 **Server Setup (Jalpan's Machine)**:
-1. Find your server IP address using `ipconfig` (currently: `10.246.11.202`).
+1. Find your server's Wi-Fi IPv4 address using `ipconfig`.
 2. Start the Flower Server:
    ```bash
    python -m federated.server --port 8080 --rounds 20 --min_clients 4
    ```
-   *Note: If prompted, allow Python network access in Windows Defender Firewall.*
 
 **Client Setup (Friends' Machines)**:
-Ensure all clients are connected to the same Wi-Fi network and run their client scripts pointing to the server's IP address:
+Replace `<SERVER_IP>` with Jalpan's current local Wi-Fi IP address:
 ```bash
-# Priyanka (CXR)
-python -m federated.client --server 10.246.11.202:8080 --modality cxr --hospital_id 0
+# Priyanka
+python -m federated.client --server <SERVER_IP>:8080 --modality covid --hospital_id 0
 
-# Gargee (Skin)
-python -m federated.client --server 10.246.11.202:8080 --modality skin --hospital_id 1
+# Gargee
+python -m federated.client --server <SERVER_IP>:8080 --modality pneumonia --hospital_id 1
 
-# Smit (MRI)
-python -m federated.client --server 10.246.11.202:8080 --modality mri --hospital_id 2
+# Smit
+python -m federated.client --server <SERVER_IP>:8080 --modality tb --hospital_id 2
 
-# Hirva (Retina)
-python -m federated.client --server 10.246.11.202:8080 --modality retina --hospital_id 3
+# Hirva
+python -m federated.client --server <SERVER_IP>:8080 --modality pneumothorax --hospital_id 3
+```
+
+### Single-Machine Local Simulation
+```bash
+python -m federated.run_fedavg --modality dummy --num_hospitals 2 --rounds 2
 ```
 
 ---
 
-## 6. Development Workflow & Contribution Guidelines
+## 6. Repository Structure
 
-1. **Contract Adherence**: Any module in `modules/` must follow `CONTRACT.md` strictly without changing function names or parameter order.
-2. **GPU Acceleration**: Always check `torch.cuda.is_available()` and pass `"cuda"` as device to speed up local training rounds.
-3. **Standalone Testing**: Run a standalone test on your module before handing it off to Core Lead:
-   ```python
-   python modules/skin_module.py
-   ```
-4. **Issue Tracking**: Refer to GitHub Issues (`https://github.com/Jalpan04/FedMedDx/issues`) for assigned tasks and sprint milestones.
+```
+FedMedDx/
+├── CONTRACT.md                # Interface contract for disease modules
+├── README.md                  # Team onboarding and setup guide
+├── requirements.txt           # Project dependencies
+├── docs/                      # Documentation guides (FedRep, Datasets, Setup)
+├── data/                      # Dataset directories (ignored by git)
+│   ├── covid/
+│   ├── pneumonia/
+│   ├── tb/
+│   └── pneumothorax/
+├── federated/                 # Federated learning core engine
+│   ├── client.py              # Distributed client entry point
+│   ├── client_wrapper.py      # FedRep + FedBN client wrapper with checkpointing
+│   ├── db.py                  # Experiment metrics logging database
+│   ├── dummy_module.py        # Contract-compliant verification stub
+│   ├── run_fedavg.py          # Single-machine simulation engine
+│   └── server.py              # Standalone Flower server
+├── modules/                   # Disease modality modules
+│   ├── covid_module.py        # Priyanka (COVID-19 Radiography)
+│   ├── pneumonia_module.py    # Gargee (Pneumonia Detection)
+│   ├── tb_module.py           # Smit (Tuberculosis Screening)
+│   └── pneumothorax_module.py # Hirva (Pneumothorax Detection)
+├── checkpoints/               # Persisted local head checkpoints
+└── results/                   # SQLite metrics database
+```

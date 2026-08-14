@@ -1,101 +1,58 @@
-# FedMedDx Federated Core Architecture Guide
+# FedMedDx Federated Learning Core (FedRep + FedBN)
 
-This document describes the federated learning infrastructure built on Flower (`flwr`), covering client wrapping, strategy execution (FedAvg, FedProx, DP, SecAgg+), simulation resource allocation, and experiment metric logging.
-
----
-
-## 1. Flower Virtual Client Engine (VCE)
-
-FedMedDx uses Flower's Virtual Client Engine (`flwr[simulation]`) to simulate realistic multi-hospital federated networks on a single GPU node.
-
-### Client Resource Allocation
-To ensure parallel client training utilizes CUDA without Out-Of-Memory (OOM) errors:
-```python
-client_resources = {
-    "num_gpus": 0.25 if torch.cuda.is_available() else 0.0,
-    "num_cpus": 1
-}
-```
+FedMedDx implements **Personalized Federated Learning (pFL)** combining **FedRep** (Federated Representation Learning) and **FedBN** (Federated Batch Normalization) over a unified Chest X-Ray feature representation.
 
 ---
 
-## 2. Generic Flower Client Wrapper (`federated/client_wrapper.py`)
+## 1. Architectural Principles
 
-The core lead provides a unified `FlowerNumPyClient` class that interfaces with any modality module implementing `CONTRACT.md`:
+### A. Decoupled Model Architecture
+*   **Shared Backbone**: Layers `conv1`, `bn1`, `layer1`, `layer2`, `layer3`, `layer4` of ResNet-18 (excluding Batch Normalization stats and final `fc` head).
+*   **Local Head ($W_{fc}$)**: Unique task classification layers kept 100% local on each client PC (`checkpoints/client_{client_id}_head.pth`).
+*   **Local Batch Norm (FedBN)**: Batch normalization layers are kept local to adapt to individual dataset contrast levels without causing drift.
 
-```python
-import flwr as fl
-import torch
-
-class FlowerNumPyClient(fl.client.NumPyClient):
-    def __init__(self, module, train_loader, val_loader, device="cuda"):
-        self.module = module
-        self.train_loader = train_loader
-        self.val_loader = val_loader
-        self.device = device
-        self.model = module.get_model().to(self.device)
-
-    def get_parameters(self, config):
-        return [val.cpu().numpy() for val in self.model.state_dict().values()]
-
-    def set_parameters(self, parameters):
-        params_dict = zip(self.model.state_dict().keys(), parameters)
-        state_dict = {k: torch.tensor(v) for k, v in params_dict}
-        self.model.load_state_dict(state_dict, strict=True)
-
-    def fit(self, parameters, config):
-        self.set_parameters(parameters)
-        epochs = config.get("local_epochs", 1)
-        state_dict, num_examples, loss = self.module.train_one_round(
-            self.model, self.train_loader, epochs=epochs, device=self.device
-        )
-        return self.get_parameters(config={}), num_examples, {"loss": loss}
-
-    def evaluate(self, parameters, config):
-        self.set_parameters(parameters)
-        loss, metrics = self.module.evaluate(
-            self.model, self.val_loader, device=self.device
-        )
-        return float(loss), len(self.val_loader.dataset), metrics
-```
+### B. Communication Flow
+1.  **Server Broadcast**: Central server broadcasts the aggregated backbone parameters.
+2.  **Local Head Optimization (Phase 1)**: Client freezes the backbone and trains the local classification head.
+3.  **Local Backbone Optimization (Phase 2)**: Client unfreezes the backbone and computes gradients on local CXR scans.
+4.  **Client Upload**: Client uploads only the updated backbone weights to the server.
+5.  **Server FedAvg**: Server computes weighted average of backbone weights across active clients.
 
 ---
 
-## 3. Supported Federated Strategies
+## 2. Distributed Execution via Local Wi-Fi / LAN
 
-### FedAvg (`run_fedavg.py`)
-Standard Federated Averaging strategy using `flwr.server.strategy.FedAvg`.
+### Coordinator (Jalpan)
+1. Find your local IP address:
+   ```powershell
+   ipconfig
+   ```
+2. Start the Flower Server:
+   ```bash
+   python -m federated.server --port 8080 --rounds 20 --min_clients 4
+   ```
 
-### FedProx (`run_fedprox.py`)
-FedProx strategy for handling severe non-IID data distributions ($\alpha = 0.1$) with a proximal term hyperparameter $\mu \in [0.01, 0.1, 1.0]$.
-
-### Differential Privacy (`run_dp.py`)
-Client-side fixed clipping and Gaussian noise injection via `flwr.server.strategy.DifferentialPrivacyClientSideFixedClipping` with noise multipliers $e \in [0.5, 1.0, 2.0]$.
-
-### Secure Aggregation (`run_secagg.py`)
-SecAgg+ cryptographic protocol using `SecAggPlusWorkflow` on server and `secaggplus_mod` on clients to protect updates from server inspection.
-
----
-
-## 4. Distributed Multi-Machine Run via Local Wi-Fi
-
-To deploy the federated learning network across physically separated developer machines connected to the same local Wi-Fi network, the architecture transitions from simulation mode to standalone distributed execution:
-
-### Architecture
-- **Centralized Server (`federated/server.py`)**: Runs on the coordinator's PC (Jalpan). Listens on a local port (e.g. `8080`) and aggregates model updates from clients.
-- **Local Network gRPC Route**: Clients connect directly to the server's local IPv4 Address (e.g., `10.246.11.202:8080`) on the same local network.
-
-### Run Instructions
-
-#### Coordinator (Jalpan)
-1. Find your Wi-Fi IPv4 address using `ipconfig` (currently: `10.246.11.202`).
-2. Start the standalone server:
+### Distributed Clients (Priyanka, Gargee, Smit, Hirva)
+Clients run pointing to the coordinator's current local IP address:
 ```bash
-python -m federated.server --port 8080 --rounds 20 --min_clients 4
+# Priyanka (COVID-19 Radiography)
+python -m federated.client --server <SERVER_IP>:8080 --modality covid --hospital_id 0
+
+# Gargee (Pneumonia)
+python -m federated.client --server <SERVER_IP>:8080 --modality pneumonia --hospital_id 1
+
+# Smit (Tuberculosis)
+python -m federated.client --server <SERVER_IP>:8080 --modality tb --hospital_id 2
+
+# Hirva (Pneumothorax)
+python -m federated.client --server <SERVER_IP>:8080 --modality pneumothorax --hospital_id 3
 ```
 
-#### Modality Developers (Priyanka, Gargee, Smit, Hirva)
-Ensure you are connected to the same Wi-Fi network, and start your client pointing to the server's local IP address:
+---
+
+## 3. Local Simulation Engine
+
+To test end-to-end on a single machine across virtual hospital partitions:
 ```bash
-python -m federated.client --server 10.246.11.202:8080 --modality <MODALITY> --hospital_id <INDEX>
+python -m federated.run_fedavg --modality dummy --num_hospitals 2 --rounds 2
 ```

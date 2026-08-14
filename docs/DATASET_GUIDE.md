@@ -1,119 +1,68 @@
-# FedMedDx Dataset Acquisition & Preprocessing Guide
+# FedMedDx Dataset Guide
 
-This document specifies data download paths, image resolutions, class distributions, and preprocessing specifications for each of the 4 medical imaging modalities.
-
----
-
-## 1. Modality Specifications
-
-### Modality 1: Chest X-ray (Priyanka)
-- **Dataset**: COVID-19 Radiography Database
-- **Classes**: 4 classes (`COVID-19`, `Normal`, `Lung Opacity`, `Viral Pneumonia`)
-- **Image Count**: ~21,165 images
-- **Target Folder**: `data/cxr/`
-- **Download Command**:
-  ```bash
-  kaggle datasets download -d tawsifurrahman/covid19-radiography-database
-  unzip covid19-radiography-database.zip -d data/cxr
-  ```
+FedMedDx utilizes four high-quality, standardized Chest X-Ray (CXR) datasets in standard PNG and JPEG formats.
 
 ---
 
-### Modality 2: Skin Lesion (Gargee)
-- **Dataset**: HAM10000 (Skin Cancer MNIST)
-- **Classes**: 7 classes (`akiec`, `bcc`, `bkl`, `df`, `mel`, `nv`, `vasc`)
-- **Image Count**: 10,015 images
-- **Target Folder**: `data/skin/`
-- **Crucial Requirement**: HAM10000 stores images across `HAM10000_images_part_1` and `HAM10000_images_part_2`. Combine image paths into one mapping using `HAM10000_metadata.csv`. Perform **Grouped Split by `lesion_id`** to prevent data leakage across train/test partitions!
-- **Download Command**:
-  ```bash
-  kaggle datasets download -d kmader/skin-cancer-mnist-ham10000
-  unzip skin-cancer-mnist-ham10000.zip -d data/skin
-  ```
+## 1. COVID-19 Radiography Database (Priyanka — Client 1)
+*   **Target Task**: 4-Class Classification (`COVID-19`, `Normal`, `Lung Opacity`, `Viral Pneumonia`)
+*   **Format**: Standard PNG images
+*   **Kaggle Download**:
+    ```bash
+    mkdir -p data/covid
+    cd data/covid
+    kaggle datasets download -d tawsifurrahman/covid19-radiography-database
+    unzip -q covid19-radiography-database.zip
+    cd ../..
+    ```
 
 ---
 
-### Modality 3: Brain MRI (Smit)
-- **Dataset**: Brain Tumor MRI Dataset
-- **Classes**: 4 classes (`glioma`, `meningioma`, `notumor`, `pituitary`)
-- **Image Count**: 7,023 images
-- **Target Folder**: `data/mri/`
-- **Download Command**:
-  ```bash
-  kaggle datasets download -d masoudnickparvar/brain-tumor-mri-dataset
-  unzip brain-tumor-mri-dataset.zip -d data/mri
-  ```
+## 2. Chest X-Ray Images (Pneumonia) (Gargee — Client 2)
+*   **Target Task**: Binary Classification (`NORMAL` vs `PNEUMONIA`)
+*   **Format**: Standard JPEG images
+*   **Kaggle Download**:
+    ```bash
+    mkdir -p data/pneumonia
+    cd data/pneumonia
+    kaggle datasets download -d paultimothymooney/chest-xray-pneumonia
+    unzip -q chest-xray-pneumonia.zip
+    cd ../..
+    ```
 
 ---
 
-### Modality 4: Retinal Fundus (Hirva)
-- **Dataset**: APTOS 2019 Blindness Detection
-- **Classes**: 5 severity grades (`0: No DR`, `1: Mild`, `2: Moderate`, `3: Severe`, `4: Proliferative DR`)
-- **Image Count**: 3,662 images
-- **Target Folder**: `data/retina/`
-- **Preprocessing Recommendation**: Apply circular border cropping and Ben Graham contrast enhancement to remove uninformative black borders.
-- **Download Command**:
-  ```bash
-  # Ensure you accept competition terms on website first!
-  kaggle competitions download -c aptos2019-blindness-detection
-  unzip aptos2019-blindness-detection.zip -d data/retina
-  ```
+## 3. Tuberculosis (TB) Chest X-Ray Database (Smit — Client 3)
+*   **Target Task**: Binary Classification (`Normal` vs `Tuberculosis`)
+*   **Format**: Standard PNG images
+*   **Kaggle Download**:
+    ```bash
+    mkdir -p data/tb
+    cd data/tb
+    kaggle datasets download -d tawsifurrahman/tuberculosis-tb-chest-xray-dataset
+    unzip -q tuberculosis-tb-chest-xray-dataset.zip
+    cd ../..
+    ```
 
 ---
 
-## 2. Standardized PyTorch Image Pipeline
-
-All modalities **MUST** normalize and resize images using the standard ImageNet pipeline:
-
-```python
-from torchvision import transforms
-
-train_transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.RandomHorizontalFlip(p=0.5),
-    transforms.RandomRotation(degrees=10),
-    transforms.ColorJitter(brightness=0.1, contrast=0.1),
-    transforms.ToTensor(),
-    transforms.Normalize(
-        mean=[0.485, 0.456, 0.406],
-        std=[0.229, 0.224, 0.225]
-    )
-])
-
-eval_transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-    transforms.Normalize(
-        mean=[0.485, 0.456, 0.406],
-        std=[0.229, 0.224, 0.225]
-    )
-])
-```
+## 4. Chest X-Ray Pneumothorax Dataset (Hirva — Client 4)
+*   **Target Task**: Binary Classification (`Normal` vs `Pneumothorax`)
+*   **Format**: Standard PNG images
+*   **Kaggle Download**:
+    ```bash
+    mkdir -p data/pneumothorax
+    cd data/pneumothorax
+    kaggle datasets download -d vsereda/chest-xray-pneumothorax-dataset
+    unzip -q chest-xray-pneumothorax-dataset.zip
+    cd ../..
+    ```
 
 ---
 
-## 3. Non-IID Dirichlet Hospital Partitioning
+## Unified Preprocessing Pipeline
 
-Hospital datasets are created using a Dirichlet distribution over target class proportions:
-
-```python
-import numpy as np
-
-def generate_dirichlet_splits(labels, num_hospitals, alpha):
-    """Generates Non-IID data indices for each hospital client."""
-    num_classes = len(np.unique(labels))
-    label_indices = [np.where(labels == c)[0] for c in range(num_classes)]
-    
-    hospital_indices = [[] for _ in range(num_hospitals)]
-    for c, indices in enumerate(label_indices):
-        np.random.shuffle(indices)
-        proportions = np.random.dirichlet(np.repeat(alpha, num_hospitals))
-        proportions = (proportions * len(indices)).astype(int)
-        
-        # Split class indices across hospitals
-        splits = np.split(indices, np.cumsum(proportions)[:-1])
-        for h in range(num_hospitals):
-            hospital_indices[h].extend(splits[h])
-            
-    return hospital_indices
-```
+Every dataset uses the same standardized image pipeline to ensure 100% compatibility:
+*   RGB Conversion: Forced 3-channel RGB `Image.convert('RGB')`
+*   Resolution: Resized to `(224, 224)`
+*   Normalization: Standard ImageNet mean `[0.485, 0.456, 0.406]` and std `[0.229, 0.224, 0.225]`

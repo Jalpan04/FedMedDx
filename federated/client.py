@@ -1,41 +1,49 @@
+"""
+FedMedDx Standalone Distributed Client.
+Connects a local disease module to the central Flower coordinator via LAN gRPC.
+"""
+
 import argparse
 import importlib
 import torch
 import flwr as fl
-from federated.client_wrapper import FlowerNumPyClient
+from federated.client_wrapper import FedRepClient
 
 def main():
-    parser = argparse.ArgumentParser(description="Start distributed Flower Client for FedMedDx.")
-    parser.add_argument("--server", type=str, required=True, help="ngrok TCP address (e.g. 0.tcp.ngrok.io:12345)")
-    parser.add_argument("--modality", type=str, required=True, choices=["cxr", "skin", "mri", "retina", "dummy"],
-                        help="Modality module name to load.")
-    parser.add_argument("--hospital_id", type=int, default=0, help="Local hospital partition index (simulated subset).")
-    parser.add_argument("--alpha", type=float, default=0.5, help="Dirichlet concentration parameter for split.")
+    parser = argparse.ArgumentParser(description="FedMedDx Distributed Node Client")
+    parser.add_argument("--server", type=str, required=True, help="Server address (e.g. 192.168.1.50:8080 or 10.246.11.202:8080)")
+    parser.add_argument("--modality", type=str, required=True, choices=["covid", "pneumonia", "tb", "pneumothorax", "dummy"], help="Modality task to execute")
+    parser.add_argument("--hospital_id", type=int, default=0, help="Local hospital partition index (default: 0)")
+    parser.add_argument("--client_id", type=str, default=None, help="Unique client ID for checkpoint persistence (defaults to modality_hospital_id)")
     args = parser.parse_args()
 
-    print(f"Connecting client to server at {args.server} using modality: {args.modality}...")
+    client_id = args.client_id or f"{args.modality}_{args.hospital_id}"
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Initializing {args.modality} client node on device: {device} (Client ID: {client_id})")
 
-    # Load selected modality module
+    # Dynamically load the selected modality module
     if args.modality == "dummy":
         module = importlib.import_module("federated.dummy_module")
     else:
         module = importlib.import_module(f"modules.{args.modality}_module")
 
-    # Load local data partition
-    # (For testing distributed networks, we split dataset locally and select partition index)
-    partitions = module.get_hospital_partitions(num_hospitals=3, alpha=args.alpha)
-    train_loader, val_loader = partitions[args.hospital_id]
+    model = module.get_model()
+    partitions = module.get_hospital_partitions(num_hospitals=max(1, args.hospital_id + 1), alpha=0.5)
+    train_loader, val_loader = partitions[min(args.hospital_id, len(partitions) - 1)]
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Using compute device: {device}")
+    client = FedRepClient(
+        model=model,
+        train_loader=train_loader,
+        val_loader=val_loader,
+        module_contract=module,
+        client_id=client_id,
+        device=device,
+    )
 
-    # Initialize NumPyClient wrapper
-    client = FlowerNumPyClient(module, train_loader, val_loader, device=device)
-
-    # Start NumPy client connection
+    print(f"Connecting to FedMedDx Coordinator at {args.server}...")
     fl.client.start_numpy_client(
         server_address=args.server,
-        client=client
+        client=client,
     )
 
 if __name__ == "__main__":
