@@ -1,7 +1,7 @@
 """
-Chest X-Ray Pneumothorax Modality Module — Hirva (Client 4)
-Dataset: Chest X-Ray Pneumothorax Dataset (Kaggle: vsereda/chest-xray-pneumothorax-dataset)
-Binary Classification: Normal (0) vs. Pneumothorax (1)
+Pediatric Chest X-Ray Modality Module — Hirva (Client 4)
+Dataset: Labeled Chest X-Ray Images (Kaggle: tolgadincer/labeled-chest-xray-images)
+Binary Classification: Normal (0) vs. Pneumonia (1)
 """
 
 import os
@@ -15,8 +15,8 @@ import numpy as np
 from PIL import Image
 
 NUM_CLASSES = 2
-CLASS_NAMES = ["Normal", "Pneumothorax"]
-DATA_DIR = os.path.join("data", "pneumothorax")
+CLASS_NAMES = ["NORMAL", "PNEUMONIA"]
+DATA_DIR = os.path.join("data", "pediatric")
 
 class CXRDataset(Dataset):
     def __init__(self, image_paths, labels, transform=None):
@@ -51,23 +51,26 @@ def get_cxr_transforms(is_train: bool = True):
     ])
 
 def get_model() -> torch.nn.Module:
-    """Returns ResNet18 model configured with 2-class binary classification head for Pneumothorax."""
+    """Returns ResNet18 model configured with 2-class binary classification head for Pediatric CXR."""
     model = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
     model.fc = nn.Linear(model.fc.in_features, NUM_CLASSES)
     return model
 
 def get_hospital_partitions(num_hospitals: int = 3, alpha: float = 0.5) -> List[Tuple[DataLoader, DataLoader]]:
-    """Partition Pneumothorax dataset across hospital clients."""
+    """Partition Pediatric CXR dataset across hospital clients."""
     image_paths = []
     labels = []
 
     for class_idx, class_name in enumerate(CLASS_NAMES):
         patterns = [
-            os.path.join(DATA_DIR, class_name, "*.png"),
-            os.path.join(DATA_DIR, class_name, "*.jpg"),
-            os.path.join(DATA_DIR, class_name, "*.jpeg"),
-            os.path.join(DATA_DIR, "*", class_name, "*.png"),
+            os.path.join(DATA_DIR, "*", class_name, "*.jpeg"),
             os.path.join(DATA_DIR, "*", class_name, "*.jpg"),
+            os.path.join(DATA_DIR, "*", class_name, "*.png"),
+            os.path.join(DATA_DIR, class_name, "*.jpeg"),
+            os.path.join(DATA_DIR, class_name, "*.jpg"),
+            os.path.join(DATA_DIR, class_name, "*.png"),
+            os.path.join(DATA_DIR, "*", "*", class_name, "*.jpeg"),
+            os.path.join(DATA_DIR, "*", "*", class_name, "*.png"),
         ]
         files = []
         for p in patterns:
@@ -223,7 +226,7 @@ def explain(model: torch.nn.Module, image: torch.Tensor, device: str) -> Tuple[i
     return pred.item(), conf.item(), overlay
 
 if __name__ == "__main__":
-    print("Testing pneumothorax_module standalone contract compliance...")
+    print("Testing pediatric_module standalone contract compliance...")
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     m = get_model()
     parts = get_hospital_partitions(2, 0.5)
@@ -231,4 +234,4 @@ if __name__ == "__main__":
     loss, metrics = evaluate(m, parts[0][1], dev)
     dummy_img = torch.randn(3, 224, 224)
     p, conf, over = explain(m, dummy_img, dev)
-    print("Pneumothorax Module Verification complete! Metrics:", metrics)
+    print("Pediatric Module Verification complete! Metrics:", metrics)

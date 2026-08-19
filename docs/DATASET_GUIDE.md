@@ -1,6 +1,6 @@
 # FedMedDx Dataset Guide
 
-FedMedDx utilizes four high-quality, standardized Chest X-Ray (CXR) datasets in standard PNG and JPEG formats.
+FedMedDx utilizes four high-quality, real, validated Chest X-Ray (CXR) datasets from Kaggle in standard PNG and JPEG formats.
 
 ---
 
@@ -46,15 +46,15 @@ FedMedDx utilizes four high-quality, standardized Chest X-Ray (CXR) datasets in 
 
 ---
 
-## 4. Chest X-Ray Pneumothorax Dataset (Hirva — Client 4)
-*   **Target Task**: Binary Classification (`Normal` vs `Pneumothorax`)
-*   **Format**: Standard PNG images
+## 4. Labeled Pediatric Chest X-Ray Images (Hirva — Client 4)
+*   **Target Task**: Binary Classification (`NORMAL` vs `PNEUMONIA`)
+*   **Format**: Standard JPEG images (5,856 images from Guangzhou Women and Children's Medical Center)
 *   **Kaggle Download**:
     ```bash
-    mkdir -p data/pneumothorax
-    cd data/pneumothorax
-    kaggle datasets download -d vsereda/chest-xray-pneumothorax-dataset
-    unzip -q chest-xray-pneumothorax-dataset.zip
+    mkdir -p data/pediatric
+    cd data/pediatric
+    kaggle datasets download -d tolgadincer/labeled-chest-xray-images
+    unzip -q labeled-chest-xray-images.zip
     cd ../..
     ```
 

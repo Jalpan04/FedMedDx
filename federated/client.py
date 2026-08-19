@@ -12,7 +12,7 @@ from federated.client_wrapper import FedRepClient
 def main():
     parser = argparse.ArgumentParser(description="FedMedDx Distributed Node Client")
     parser.add_argument("--server", type=str, required=True, help="Server address (e.g. 192.168.1.50:8080 or 10.246.11.202:8080)")
-    parser.add_argument("--modality", type=str, required=True, choices=["covid", "pneumonia", "tb", "pneumothorax", "dummy"], help="Modality task to execute")
+    parser.add_argument("--modality", type=str, required=True, choices=["covid", "pneumonia", "tb", "pediatric", "dummy"], help="Modality task to execute")
     parser.add_argument("--hospital_id", type=int, default=0, help="Local hospital partition index (default: 0)")
     parser.add_argument("--client_id", type=str, default=None, help="Unique client ID for checkpoint persistence (defaults to modality_hospital_id)")
     args = parser.parse_args()

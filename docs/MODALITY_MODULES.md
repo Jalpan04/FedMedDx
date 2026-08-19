@@ -28,11 +28,11 @@ This guide details the implementation structure and datasets for the four Chest 
 
 ---
 
-## 4. Pneumothorax Module (`modules/pneumothorax_module.py`)
+## 4. Pediatric Pneumonia Module (`modules/pediatric_module.py`)
 *   **Owner**: Hirva (Client 4)
-*   **Target Task**: Binary Classification (`Normal` vs `Pneumothorax`)
+*   **Target Task**: Binary Classification (`NORMAL` vs `PNEUMONIA`)
 *   **Output Dimension**: $512 \times 2$
-*   **Dataset Path**: `data/pneumothorax/`
+*   **Dataset Path**: `data/pediatric/`
 
 ---
 
@@ -43,5 +43,5 @@ Each module contains a self-test routine at the bottom of the file. To verify yo
 python -m modules.covid_module
 python -m modules.pneumonia_module
 python -m modules.tb_module
-python -m modules.pneumothorax_module
+python -m modules.pediatric_module
 ```

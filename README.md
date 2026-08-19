@@ -8,13 +8,13 @@ Participating hospital nodes collaboratively train a shared **ResNet-18** featur
 
 ## 1. Team Roles & Disease Allocations
 
-| Role / Owner | Assigned Disease Task | Dataset | Target Output |
+| Role / Owner | Assigned Disease Task | Dataset Slug (Kaggle) | Target Output |
 | :--- | :--- | :--- | :--- |
 | **Jalpan (Core Lead)** | Federated Core Coordinator | Server & Client Engine | FedRep + FedBN Aggregator |
 | **Priyanka (Client 1)** | COVID-19 Radiography | `tawsifurrahman/covid19-radiography-database` | 4 Classes (`COVID-19`, `Normal`, `Lung Opacity`, `Viral Pneumonia`) |
 | **Gargee (Client 2)** | Pneumonia Detection | `paultimothymooney/chest-xray-pneumonia` | Binary (`NORMAL`, `PNEUMONIA`) |
 | **Smit (Client 3)** | Tuberculosis Screening | `tawsifurrahman/tuberculosis-tb-chest-xray-dataset` | Binary (`Normal`, `Tuberculosis`) |
-| **Hirva (Client 4)** | Pneumothorax Detection | `vsereda/chest-xray-pneumothorax-dataset` | Binary (`Normal`, `Pneumothorax`) |
+| **Hirva (Client 4)** | Pediatric Pneumonia | `tolgadincer/labeled-chest-xray-images` | Binary (`NORMAL`, `PNEUMONIA`) |
 
 ---
 
@@ -32,7 +32,7 @@ Participating hospital nodes collaboratively train a shared **ResNet-18** featur
 ┌──────────────────┐            ┌──────────────────┐            ┌──────────────────┐
 │   Priyanka       │            │   Gargee         │            │   Smit / Hirva   │
 │ Task: COVID-19   │            │ Task: Pneumonia  │            │ Task: TB /       │
-│ (4-Class Head)   │            │ (Binary Head)    │            │ Pneumothorax     │
+│ (4-Class Head)   │            │ (Binary Head)    │            │ Pediatric        │
 │ Local Checkpoint │            │ Local Checkpoint │            │ Local Checkpoint │
 └──────────────────┘            └──────────────────┘            └──────────────────┘
 ```
@@ -90,12 +90,12 @@ unzip -q tuberculosis-tb-chest-xray-dataset.zip
 cd ../..
 ```
 
-### Hirva (Pneumothorax)
+### Hirva (Pediatric Pneumonia)
 ```bash
-mkdir -p data/pneumothorax
-cd data/pneumothorax
-kaggle datasets download -d vsereda/chest-xray-pneumothorax-dataset
-unzip -q chest-xray-pneumothorax-dataset.zip
+mkdir -p data/pediatric
+cd data/pediatric
+kaggle datasets download -d tolgadincer/labeled-chest-xray-images
+unzip -q labeled-chest-xray-images.zip
 cd ../..
 ```
 
@@ -125,7 +125,7 @@ python -m federated.client --server <SERVER_IP>:8080 --modality pneumonia --hosp
 python -m federated.client --server <SERVER_IP>:8080 --modality tb --hospital_id 2
 
 # Hirva
-python -m federated.client --server <SERVER_IP>:8080 --modality pneumothorax --hospital_id 3
+python -m federated.client --server <SERVER_IP>:8080 --modality pediatric --hospital_id 3
 ```
 
 ### Single-Machine Local Simulation
@@ -147,7 +147,7 @@ FedMedDx/
 │   ├── covid/
 │   ├── pneumonia/
 │   ├── tb/
-│   └── pneumothorax/
+│   └── pediatric/
 ├── federated/                 # Federated learning core engine
 │   ├── client.py              # Distributed client entry point
 │   ├── client_wrapper.py      # FedRep + FedBN client wrapper with checkpointing
@@ -159,7 +159,7 @@ FedMedDx/
 │   ├── covid_module.py        # Priyanka (COVID-19 Radiography)
 │   ├── pneumonia_module.py    # Gargee (Pneumonia Detection)
 │   ├── tb_module.py           # Smit (Tuberculosis Screening)
-│   └── pneumothorax_module.py # Hirva (Pneumothorax Detection)
+│   └── pediatric_module.py    # Hirva (Pediatric Pneumonia)
 ├── checkpoints/               # Persisted local head checkpoints
 └── results/                   # SQLite metrics database
 ```

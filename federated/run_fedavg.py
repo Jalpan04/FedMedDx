@@ -6,7 +6,6 @@ logging metrics to SQLite without requiring heavy Ray dependencies.
 
 import argparse
 import importlib
-import copy
 import torch
 from typing import Dict, List, Tuple
 from federated.client_wrapper import FedRepClient
@@ -14,7 +13,7 @@ from federated.db import init_db, log_experiment_run, log_round_metrics
 
 def main():
     parser = argparse.ArgumentParser(description="FedMedDx Local Federated Simulation Engine")
-    parser.add_argument("--modality", type=str, default="dummy", choices=["covid", "pneumonia", "tb", "pneumothorax", "dummy"], help="Disease module to simulate")
+    parser.add_argument("--modality", type=str, default="dummy", choices=["covid", "pneumonia", "tb", "pediatric", "dummy"], help="Disease module to simulate")
     parser.add_argument("--num_hospitals", type=int, default=3, help="Number of virtual hospital partitions (default: 3)")
     parser.add_argument("--alpha", type=float, default=0.5, help="Dirichlet non-IID concentration parameter (default: 0.5)")
     parser.add_argument("--rounds", type=int, default=3, help="Number of federated rounds (default: 3)")

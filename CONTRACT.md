@@ -9,7 +9,7 @@ Returns a ResNet18 model initialized with pre-trained weights, modified with a c
 - `covid_module.py`: 4 classes (`COVID-19`, `Normal`, `Lung Opacity`, `Viral Pneumonia`)
 - `pneumonia_module.py`: 2 classes (`NORMAL`, `PNEUMONIA`)
 - `tb_module.py`: 2 classes (`Normal`, `Tuberculosis`)
-- `pneumothorax_module.py`: 2 classes (`Normal`, `Pneumothorax`)
+- `pediatric_module.py`: 2 classes (`NORMAL`, `PNEUMONIA`)
 
 ### 2. `get_hospital_partitions(num_hospitals: int = 3, alpha: float = 0.5) -> List[Tuple[DataLoader, DataLoader]]`
 Loads local disease data from `data/<modality>/` and partitions it across `num_hospitals` clients using a Dirichlet non-IID distribution ($\alpha$). Returns a list of `(train_loader, val_loader)` tuples with standardized 3-channel RGB `(3, 224, 224)` inputs.
