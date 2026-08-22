@@ -127,8 +127,10 @@ def train_one_round(model: torch.nn.Module, train_loader: DataLoader, epochs: in
     criterion = nn.CrossEntropyLoss()
     total_loss = 0.0
     total_samples = 0
+    num_batches = len(train_loader)
 
     # Phase 1: Train Head (freeze backbone)
+    print(f"\n---> Phase 1: Training Classification Head (Backbone Frozen) on device: {device}")
     for name, param in model.named_parameters():
         if "fc" not in name:
             param.requires_grad = False
@@ -137,22 +139,25 @@ def train_one_round(model: torch.nn.Module, train_loader: DataLoader, epochs: in
 
     head_optimizer = torch.optim.Adam(model.fc.parameters(), lr=1e-3)
     model.train()
-    for _ in range(max(1, epochs)):
-        for images, targets in train_loader:
+    for epoch in range(max(1, epochs)):
+        for batch_idx, (images, targets) in enumerate(train_loader):
             images, targets = images.to(device), targets.to(device)
             head_optimizer.zero_grad()
             outputs = model(images)
             loss = criterion(outputs, targets)
             loss.backward()
             head_optimizer.step()
+            if (batch_idx + 1) % 10 == 0 or (batch_idx + 1) == num_batches:
+                print(f"     [Head] Epoch {epoch+1}/{max(1, epochs)} | Batch {batch_idx+1}/{num_batches} | Loss: {loss.item():.4f}")
 
     # Phase 2: Train Backbone (unfreeze backbone)
+    print(f"\n---> Phase 2: Training Full Model (Backbone Unfrozen) on device: {device}")
     for param in model.parameters():
         param.requires_grad = True
 
     backbone_optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
-    for _ in range(max(1, epochs)):
-        for images, targets in train_loader:
+    for epoch in range(max(1, epochs)):
+        for batch_idx, (images, targets) in enumerate(train_loader):
             images, targets = images.to(device), targets.to(device)
             backbone_optimizer.zero_grad()
             outputs = model(images)
@@ -161,6 +166,8 @@ def train_one_round(model: torch.nn.Module, train_loader: DataLoader, epochs: in
             backbone_optimizer.step()
             total_loss += loss.item() * len(targets)
             total_samples += len(targets)
+            if (batch_idx + 1) % 10 == 0 or (batch_idx + 1) == num_batches:
+                print(f"     [Backbone] Epoch {epoch+1}/{max(1, epochs)} | Batch {batch_idx+1}/{num_batches} | Loss: {loss.item():.4f}")
 
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
@@ -170,15 +177,17 @@ def train_one_round(model: torch.nn.Module, train_loader: DataLoader, epochs: in
 
 def evaluate(model: torch.nn.Module, val_loader: DataLoader, device: str) -> Tuple[float, Dict[str, float]]:
     """Evaluate current model performance on validation set."""
+    print(f"\n---> Running local evaluation on validation set...")
     model.to(device)
     model.eval()
     criterion = nn.CrossEntropyLoss()
     total_loss = 0.0
     correct = 0
     total = 0
+    num_batches = len(val_loader)
 
     with torch.no_grad():
-        for images, targets in val_loader:
+        for batch_idx, (images, targets) in enumerate(val_loader):
             images, targets = images.to(device), targets.to(device)
             outputs = model(images)
             loss = criterion(outputs, targets)
@@ -186,6 +195,8 @@ def evaluate(model: torch.nn.Module, val_loader: DataLoader, device: str) -> Tup
             preds = outputs.argmax(dim=1)
             correct += (preds == targets).sum().item()
             total += len(targets)
+            if (batch_idx + 1) % 10 == 0 or (batch_idx + 1) == num_batches:
+                print(f"     [Evaluation] Batch {batch_idx+1}/{num_batches} | Acc: {(correct/total)*100:.2f}%")
 
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
@@ -227,8 +238,41 @@ if __name__ == "__main__":
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     m = get_model()
     parts = get_hospital_partitions(2, 0.5)
+    
+    # Train 1 round
     s, c, l = train_one_round(m, parts[0][0], 1, dev)
+    
+    # Save the trained model weights and biases locally
+    checkpoint_path = "tb_model_checkpoint.pth"
+    torch.save(m.state_dict(), checkpoint_path)
+    print(f"\n---> Saved trained weights and biases to: {checkpoint_path}")
+    
+    # Evaluate
     loss, metrics = evaluate(m, parts[0][1], dev)
-    dummy_img = torch.randn(3, 224, 224)
-    p, conf, over = explain(m, dummy_img, dev)
-    print("TB Module Verification complete! Metrics:", metrics)
+    print("\nTB Module Verification complete! Metrics:", metrics)
+    
+    # Generate Heatmap on a real image if available
+    img_path = None
+    # Look for a real image in data/tb/
+    for root, dirs, files in os.walk(DATA_DIR):
+        for f in files:
+            if f.lower().endswith(('.png', '.jpg', '.jpeg')):
+                img_path = os.path.join(root, f)
+                break
+        if img_path:
+            break
+            
+    if img_path:
+        print(f"\n---> Generating Grad-CAM heatmap on real image: {img_path}")
+        real_img = Image.open(img_path).convert("RGB")
+        # Preprocess manually for explanation
+        trans = get_cxr_transforms(is_train=False)
+        img_tensor = trans(real_img)
+        pred_class, confidence, overlay = explain(m, img_tensor, dev)
+        
+        # Save overlay image
+        output_heatmap_path = "tb_heatmap.png"
+        Image.fromarray(overlay).save(output_heatmap_path)
+        print(f"Saved Grad-CAM heatmap overlay to: {output_heatmap_path}")
+    else:
+        print("\nNo real image found to generate heatmap overlay.")
