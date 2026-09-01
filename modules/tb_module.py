@@ -146,6 +146,7 @@ def train_one_round(model: torch.nn.Module, train_loader: DataLoader, epochs: in
     num_batches = len(train_loader)
 
     # Phase 1: Train Head (freeze backbone)
+    print(f"\n---> Phase 1: Training Classification Head (Backbone Frozen) on device: {device}")
     for name, param in model.named_parameters():
         if "fc" not in name:
             param.requires_grad = False
@@ -166,6 +167,7 @@ def train_one_round(model: torch.nn.Module, train_loader: DataLoader, epochs: in
                 print(f"     [Head] Epoch {epoch+1}/{max(1, epochs)} | Batch {batch_idx+1}/{num_batches} | Loss: {loss.item():.4f}")
 
     # Phase 2: Train Backbone (unfreeze backbone)
+    print(f"\n---> Phase 2: Training Full Model (Backbone Unfrozen) on device: {device}")
     for param in model.parameters():
         param.requires_grad = True
 
@@ -192,6 +194,7 @@ def train_one_round(model: torch.nn.Module, train_loader: DataLoader, epochs: in
 
 def evaluate(model: torch.nn.Module, val_loader: DataLoader, device: str) -> Tuple[float, Dict[str, float]]:
     """Evaluate current model performance on validation set."""
+    print(f"\n---> Running local evaluation on validation set...")
     model.to(device)
     model.eval()
     criterion = nn.CrossEntropyLoss()
@@ -202,7 +205,7 @@ def evaluate(model: torch.nn.Module, val_loader: DataLoader, device: str) -> Tup
     all_probs = []
 
     with torch.no_grad():
-        for images, targets in val_loader:
+        for batch_idx, (images, targets) in enumerate(val_loader):
             images, targets = images.to(device), targets.to(device)
             outputs = model(images)
             loss = criterion(outputs, targets)
@@ -269,7 +272,16 @@ if __name__ == "__main__":
     print(f"Using device: {dev}")
     m = get_model()
     parts = get_hospital_partitions(2, 0.5)
+    
+    # Train 1 round
     s, c, l = train_one_round(m, parts[0][0], 1, dev)
+    
+    # Save the trained model weights and biases locally
+    checkpoint_path = "tb_model_checkpoint.pth"
+    torch.save(m.state_dict(), checkpoint_path)
+    print(f"\n---> Saved trained weights and biases to: {checkpoint_path}")
+    
+    # Evaluate
     loss, metrics = evaluate(m, parts[0][1], dev)
     print("TB Module Verification complete! Metrics:", metrics)
 
