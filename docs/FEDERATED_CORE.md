@@ -44,8 +44,8 @@ python -m federated.client --server <SERVER_IP>:8080 --modality pneumonia --hosp
 # Smit (Tuberculosis)
 python -m federated.client --server <SERVER_IP>:8080 --modality tb --hospital_id 2
 
-# Hirva (Pneumothorax)
-python -m federated.client --server <SERVER_IP>:8080 --modality pneumothorax --hospital_id 3
+# Hirva (Pediatric Pneumonia)
+python -m federated.client --server <SERVER_IP>:8080 --modality pediatric --hospital_id 3
 ```
 
 ---
