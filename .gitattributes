@@ -1,0 +1,6 @@
+# GitHub Linguist Language Override
+# Ensure Python is recognized as 100% primary language
+*.ipynb linguist-detectable=false
+*.ipynb linguist-documentation=true
+*.pptx linguist-detectable=false
+*.pdf linguist-detectable=false
