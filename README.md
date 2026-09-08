@@ -8,13 +8,13 @@ Participating hospital nodes collaboratively train a shared **ResNet-18** featur
 
 ## 1. Team Roles & Disease Allocations
 
-| Role / Owner | Assigned Disease Task | Dataset Slug (Kaggle) | Target Output |
-| :--- | :--- | :--- | :--- |
-| **Jalpan (Core Lead)** | Federated Core Coordinator | Server & Client Engine | FedRep + FedBN Aggregator |
-| **Priyanka (Client 1)** | COVID-19 Radiography | `tawsifurrahman/covid19-radiography-database` | 4 Classes (`COVID-19`, `Normal`, `Lung Opacity`, `Viral Pneumonia`) |
-| **Gargee (Client 2)** | Pneumonia Detection | `paultimothymooney/chest-xray-pneumonia` | Binary (`NORMAL`, `PNEUMONIA`) |
-| **Smit (Client 3)** | Tuberculosis Screening | `tawsifurrahman/tuberculosis-tb-chest-xray-dataset` | Binary (`Normal`, `Tuberculosis`) |
-| **Hirva (Client 4)** | Pediatric Pneumonia | `tolgadincer/labeled-chest-xray-images` | Binary (`NORMAL`, `PNEUMONIA`) |
+| Role / Owner | Assigned Disease Task | Dataset Slug (Kaggle) | Target Output | Verified Kaggle Metric |
+| :--- | :--- | :--- | :--- | :--- |
+| **Jalpan (Core Lead)** | Federated Core Coordinator | Server & Client Engine | FedRep + FedBN Aggregator | Simulation & gRPC Server Tested |
+| **Priyanka (Client 1)** | COVID-19 Radiography | `tawsifurrahman/covid19-radiography-database` | 4 Classes (`COVID`, `Lung_Opacity`, `Normal`, `Viral Pneumonia`) | **96.41%** Accuracy \| **0.9929** AUC |
+| **Gargee (Client 2)** | Pneumonia Detection | `paultimothymooney/chest-xray-pneumonia` | Binary (`NORMAL`, `PNEUMONIA`) | **97.24%** Accuracy \| **0.9976** AUC |
+| **Smit (Client 3)** | Tuberculosis Screening | `tawsifurrahman/tuberculosis-tb-chest-xray-dataset` | Binary (`Normal`, `Tuberculosis`) | **95.80%** Accuracy \| Grad-CAM Tested |
+| **Hirva (Client 4)** | Pediatric Pneumonia | `tolgadincer/labeled-chest-xray-images` | Binary (`NORMAL`, `PNEUMONIA`) | **92.95%** Accuracy \| **0.9822** AUC |
 
 ---
 

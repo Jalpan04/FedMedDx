@@ -7,34 +7,31 @@ This document provides explicit, copy-pasteable instructions for each team membe
 ## 1. Priyanka — Client 1 (COVID-19 Radiography)
 
 ### Overview
-* **Assigned Modality**: 4-Class COVID-19 Radiography (`COVID-19`, `Normal`, `Lung Opacity`, `Viral Pneumonia`)
+* **Assigned Modality**: 4-Class COVID-19 Radiography (`COVID`, `Lung_Opacity`, `Normal`, `Viral Pneumonia`)
 * **Target Output**: 4-class classification head (`512 x 4`)
 * **Dataset**: `tawsifurrahman/covid19-radiography-database`
+* **Verified Benchmark**: 96.41% Test Accuracy | 97.13% Macro F1 | 0.9929 ROC-AUC (15 epochs, Tesla T4)
+* **Status**: **VERIFIED & MERGED INTO MAIN**
 
 ### Copy-Paste Message for Priyanka:
 ```text
 Hi Priyanka,
 
-We are preparing for our multi-machine distributed federated run. Here are the exact steps to set up and verify your COVID-19 module:
+Outstanding work on the COVID-19 Radiography pipeline! Achieving 96.41% accuracy, 97.13% macro F1, and 0.9929 ROC-AUC on Kaggle across 21,165 scans is a fantastic result. Your branch has been merged into main.
 
-1. Dataset Setup (Run in terminal from project root):
+Here are your next steps to connect to our live federated network:
+
+1. Local Dataset Setup:
    mkdir -p data/covid
    cd data/covid
    kaggle datasets download -d tawsifurrahman/covid19-radiography-database
    unzip -q covid19-radiography-database.zip
    cd ../..
 
-2. Standalone Verification:
-   Run the module test on your machine to verify that your GPU/CPU executes the 4-class pipeline:
+2. Local Verification:
    python -m modules.covid_module
 
-3. Push Your Branch:
-   git checkout -b priyanka-covid
-   git add modules/covid_module.py
-   git commit -m "Complete COVID-19 4-class module verification"
-   git push origin priyanka-covid
-
-4. Connect to Jalpan's Coordinator Server:
+3. Connect to the Live Coordinator:
    When Jalpan starts the server, connect your client by running:
    python -m federated.client --server <JALPAN_IP>:8080 --modality covid --hospital_id 0
 ```

@@ -103,18 +103,23 @@ def plot_all_figures():
     print(f"Saved figure: {acc_path}")
 
     # -------------------------------------------------------------
-    # Figure 3: Summary Bar Chart: Local-Only vs FedRep
+    # Figure 3: Summary Bar Chart: Local-Only vs FedRep+FedBN
     # -------------------------------------------------------------
     # Get final round metric per run
     final_rounds = df.groupby(["run_id", "hospital_id"]).last().reset_index()
+    # Filter to primary comparison: Local-Only vs FedRep+FedBN
+    comparison_df = final_rounds[final_rounds["strategy"].isin(["Local-Only", "FedRep+FedBN"])]
+    if comparison_df.empty:
+        comparison_df = final_rounds
 
     plt.figure(figsize=(12, 6))
+    strategy_palette = {"Local-Only": "#94a3b8", "FedRep+FedBN": "#0284c7", "FedRep": "#0d9488", "FedAvg": "#f59e0b"}
     ax = sns.barplot(
-        data=final_rounds,
+        data=comparison_df,
         x="modality",
         y="accuracy",
         hue="strategy",
-        palette=["#94a3b8", "#0284c7"],
+        palette=strategy_palette,
         capsize=0.1
     )
     plt.title("Performance Comparison: Isolated Local-Only vs. FedRep Collaborative", fontsize=14, fontweight="bold", pad=12)

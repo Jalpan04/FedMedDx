@@ -87,7 +87,7 @@ MODALITIES = {
         "checkpoint": "checkpoints/covid_best_model.pth",
         "owner": "Priyanka (Client 1)",
         "dataset": "COVID-19 Radiography Database",
-        "description": "4-way classification: COVID-19, Normal, Lung Opacity, Viral Pneumonia"
+        "description": "4-way classification: COVID, Lung Opacity, Normal, Viral Pneumonia"
     },
     "Adult Pneumonia Detection (Binary)": {
         "id": "pneumonia",
