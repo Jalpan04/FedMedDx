@@ -22,12 +22,16 @@ def main():
     print(f"Initializing {args.modality} client node on device: {device} (Client ID: {client_id})")
 
     # Dynamically load the selected modality module
+    print(f"Loading disease module: {args.modality}...")
     if args.modality == "dummy":
         module = importlib.import_module("federated.dummy_module")
     else:
         module = importlib.import_module(f"modules.{args.modality}_module")
 
+    print(f"Building ResNet-18 model architecture...")
     model = module.get_model()
+
+    print(f"Preparing dataset partitions for hospital index {args.hospital_id}...")
     partitions = module.get_hospital_partitions(num_hospitals=max(1, args.hospital_id + 1), alpha=0.5)
     train_loader, val_loader = partitions[min(args.hospital_id, len(partitions) - 1)]
 
