@@ -15,11 +15,12 @@ def main():
     parser.add_argument("--modality", type=str, required=True, choices=["covid", "pneumonia", "tb", "pediatric", "dummy"], help="Modality task to execute")
     parser.add_argument("--hospital_id", type=int, default=0, help="Local hospital partition index (default: 0)")
     parser.add_argument("--client_id", type=str, default=None, help="Unique client ID for checkpoint persistence (defaults to modality_hospital_id)")
+    parser.add_argument("--fast", action="store_true", help="Fast live presentation mode: train on 8 batches per round for instant multi-round execution")
     args = parser.parse_args()
 
     client_id = args.client_id or f"{args.modality}_{args.hospital_id}"
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Initializing {args.modality} client node on device: {device} (Client ID: {client_id})")
+    print(f"Initializing {args.modality} client node on device: {device} (Client ID: {client_id}) | Fast Demo: {args.fast}")
 
     # Dynamically load the selected modality module
     print(f"Loading disease module: {args.modality}...")
@@ -42,6 +43,7 @@ def main():
         module_contract=module,
         client_id=client_id,
         device=device,
+        max_batches=8 if args.fast else None,
     )
 
     print(f"Connecting to FedMedDx Coordinator at {args.server}...")

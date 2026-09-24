@@ -9,13 +9,14 @@ import flwr as fl
 from typing import Dict, Tuple
 
 class FedRepClient(fl.client.NumPyClient):
-    def __init__(self, model: torch.nn.Module, train_loader, val_loader, module_contract, client_id: str, device: str = "cpu"):
+    def __init__(self, model: torch.nn.Module, train_loader, val_loader, module_contract, client_id: str, device: str = "cpu", max_batches: int = None):
         self.model = model
         self.train_loader = train_loader
         self.val_loader = val_loader
         self.module = module_contract
         self.client_id = client_id
         self.device = device
+        self.max_batches = max_batches
         self.checkpoints_dir = "checkpoints"
         os.makedirs(self.checkpoints_dir, exist_ok=True)
         self.head_path = os.path.join(self.checkpoints_dir, f"client_{self.client_id}_head.pth")
@@ -61,9 +62,14 @@ class FedRepClient(fl.client.NumPyClient):
             epochs = int(config.get("epochs", 1))
 
             # Run local module training round
-            _, num_samples, loss = self.module.train_one_round(
-                self.model, self.train_loader, epochs=epochs, device=self.device
-            )
+            try:
+                _, num_samples, loss = self.module.train_one_round(
+                    self.model, self.train_loader, epochs=epochs, device=self.device, max_batches=self.max_batches
+                )
+            except TypeError:
+                _, num_samples, loss = self.module.train_one_round(
+                    self.model, self.train_loader, epochs=epochs, device=self.device
+                )
 
             # Save local classification head checkpoint
             try:
@@ -85,7 +91,10 @@ class FedRepClient(fl.client.NumPyClient):
         """Evaluate local personalized model on local validation data."""
         try:
             self.set_parameters(parameters)
-            loss, metrics = self.module.evaluate(self.model, self.val_loader, device=self.device)
+            try:
+                loss, metrics = self.module.evaluate(self.model, self.val_loader, device=self.device, max_batches=self.max_batches)
+            except TypeError:
+                loss, metrics = self.module.evaluate(self.model, self.val_loader, device=self.device)
 
             clean_metrics = {str(k): float(v) for k, v in metrics.items()}
             num_val_samples = len(self.val_loader.dataset) if hasattr(self.val_loader, "dataset") else len(self.val_loader) * 16

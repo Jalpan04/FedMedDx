@@ -161,16 +161,16 @@ def get_hospital_partitions(num_hospitals: int = 3, alpha: float = 0.5) -> List[
     return partitions
 
 
-def train_one_round(model: torch.nn.Module, train_loader: DataLoader, epochs: int, device: str) -> Tuple[dict, int, float]:
+def train_one_round(model: torch.nn.Module, train_loader: DataLoader, epochs: int, device: str, max_batches: int = None) -> Tuple[dict, int, float]:
     """Execute local training for one federated round (FedRep style: Head optimization + Backbone optimization)."""
     model.to(device)
     criterion = nn.CrossEntropyLoss()
     total_loss = 0.0
     total_samples = 0
-    num_batches = len(train_loader)
+    num_batches = len(train_loader) if max_batches is None else min(len(train_loader), max_batches)
 
     # Phase 1: Train Head (freeze backbone)
-    print(f"\n---> Phase 1: Training Classification Head (Backbone Frozen) on device: {device}")
+    print(f"\n---> Phase 1: Training Classification Head (Backbone Frozen) on device: {device}", flush=True)
     for name, param in model.named_parameters():
         if "fc" not in name:
             param.requires_grad = False
@@ -181,23 +181,27 @@ def train_one_round(model: torch.nn.Module, train_loader: DataLoader, epochs: in
     model.train()
     for epoch in range(max(1, epochs)):
         for batch_idx, (images, targets) in enumerate(train_loader):
+            if max_batches is not None and batch_idx >= max_batches:
+                break
             images, targets = images.to(device), targets.to(device)
             head_optimizer.zero_grad()
             outputs = model(images)
             loss = criterion(outputs, targets)
             loss.backward()
             head_optimizer.step()
-            if (batch_idx + 1) % 10 == 0 or (batch_idx + 1) == num_batches:
-                print(f"     [Head] Epoch {epoch+1}/{max(1, epochs)} | Batch {batch_idx+1}/{num_batches} | Loss: {loss.item():.4f}")
+            if (batch_idx + 1) % 5 == 0 or (batch_idx + 1) == num_batches:
+                print(f"     [Head] Epoch {epoch+1}/{max(1, epochs)} | Batch {batch_idx+1}/{num_batches} | Loss: {loss.item():.4f}", flush=True)
 
     # Phase 2: Train Backbone (unfreeze backbone)
-    print(f"\n---> Phase 2: Training Full Model (Backbone Unfrozen) on device: {device}")
+    print(f"\n---> Phase 2: Training Full Model (Backbone Unfrozen) on device: {device}", flush=True)
     for param in model.parameters():
         param.requires_grad = True
 
     backbone_optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     for epoch in range(max(1, epochs)):
         for batch_idx, (images, targets) in enumerate(train_loader):
+            if max_batches is not None and batch_idx >= max_batches:
+                break
             images, targets = images.to(device), targets.to(device)
             backbone_optimizer.zero_grad()
             outputs = model(images)
@@ -206,8 +210,8 @@ def train_one_round(model: torch.nn.Module, train_loader: DataLoader, epochs: in
             backbone_optimizer.step()
             total_loss += loss.item() * len(targets)
             total_samples += len(targets)
-            if (batch_idx + 1) % 10 == 0 or (batch_idx + 1) == num_batches:
-                print(f"     [Backbone] Epoch {epoch+1}/{max(1, epochs)} | Batch {batch_idx+1}/{num_batches} | Loss: {loss.item():.4f}")
+            if (batch_idx + 1) % 5 == 0 or (batch_idx + 1) == num_batches:
+                print(f"     [Backbone] Epoch {epoch+1}/{max(1, epochs)} | Batch {batch_idx+1}/{num_batches} | Loss: {loss.item():.4f}", flush=True)
 
     if torch.cuda.is_available():
         torch.cuda.empty_cache()
@@ -216,9 +220,9 @@ def train_one_round(model: torch.nn.Module, train_loader: DataLoader, epochs: in
     return model.state_dict(), total_samples, avg_loss
 
 
-def evaluate(model: torch.nn.Module, val_loader: DataLoader, device: str) -> Tuple[float, Dict[str, float]]:
+def evaluate(model: torch.nn.Module, val_loader: DataLoader, device: str, max_batches: int = None) -> Tuple[float, Dict[str, float]]:
     """Evaluate current model performance on validation set."""
-    print(f"\n---> Running local evaluation on validation set...")
+    print(f"\n---> Running local evaluation on validation set...", flush=True)
     model.to(device)
     model.eval()
     criterion = nn.CrossEntropyLoss()
@@ -230,6 +234,8 @@ def evaluate(model: torch.nn.Module, val_loader: DataLoader, device: str) -> Tup
 
     with torch.no_grad():
         for batch_idx, (images, targets) in enumerate(val_loader):
+            if max_batches is not None and batch_idx >= max_batches:
+                break
             images, targets = images.to(device), targets.to(device)
             outputs = model(images)
             loss = criterion(outputs, targets)
