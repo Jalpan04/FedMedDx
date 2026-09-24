@@ -56,31 +56,46 @@ class FedRepClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config: Dict[str, str]) -> Tuple[list, int, dict]:
         """Execute local training for one federated round."""
-        self.set_parameters(parameters)
-        epochs = int(config.get("epochs", 1))
-
-        # Run local module training round
-        _, num_samples, loss = self.module.train_one_round(
-            self.model, self.train_loader, epochs=epochs, device=self.device
-        )
-
-        # Save local classification head checkpoint
         try:
-            torch.save(self.model.fc.state_dict(), self.head_path)
-        except Exception as e:
-            print(f"[Client {self.client_id}] Warning: Could not save head checkpoint: {e}")
+            self.set_parameters(parameters)
+            epochs = int(config.get("epochs", 1))
 
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+            # Run local module training round
+            _, num_samples, loss = self.module.train_one_round(
+                self.model, self.train_loader, epochs=epochs, device=self.device
+            )
 
-        return self.get_parameters(config), num_samples, {"train_loss": float(loss)}
+            # Save local classification head checkpoint
+            try:
+                torch.save(self.model.fc.state_dict(), self.head_path)
+            except Exception as e:
+                print(f"[Client {self.client_id}] Warning: Could not save head checkpoint: {e}")
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+            return self.get_parameters(config), int(num_samples), {"train_loss": float(loss)}
+        except Exception as err:
+            import traceback
+            print(f"[Client {self.client_id}] ERROR during fit(): {err}")
+            traceback.print_exc()
+            raise err
 
     def evaluate(self, parameters, config: Dict[str, str]) -> Tuple[float, int, dict]:
         """Evaluate local personalized model on local validation data."""
-        self.set_parameters(parameters)
-        loss, metrics = self.module.evaluate(self.model, self.val_loader, device=self.device)
+        try:
+            self.set_parameters(parameters)
+            loss, metrics = self.module.evaluate(self.model, self.val_loader, device=self.device)
 
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+            clean_metrics = {str(k): float(v) for k, v in metrics.items()}
+            num_val_samples = len(self.val_loader.dataset) if hasattr(self.val_loader, "dataset") else len(self.val_loader) * 16
 
-        return float(loss), len(self.val_loader.dataset if hasattr(self.val_loader, "dataset") else self.val_loader), metrics
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+            return float(loss), int(num_val_samples), clean_metrics
+        except Exception as err:
+            import traceback
+            print(f"[Client {self.client_id}] ERROR during evaluate(): {err}")
+            traceback.print_exc()
+            raise err
