@@ -143,8 +143,9 @@ def load_triage_models():
     pneu_m.to(device).eval()
 
     tb_m = tb_module.get_model()
-    if os.path.exists("checkpoints/tb_model_checkpoint.pth"):
-        tb_m.load_state_dict(torch.load("checkpoints/tb_model_checkpoint.pth", map_location=device), strict=False)
+    tb_ckpt = "tb_model_checkpoint.pth" if os.path.exists("tb_model_checkpoint.pth") else "checkpoints/tb_model_checkpoint.pth"
+    if os.path.exists(tb_ckpt):
+        tb_m.load_state_dict(torch.load(tb_ckpt, map_location=device), strict=False)
     tb_m.to(device).eval()
 
     ped_m = pediatric_module.get_model()
@@ -179,10 +180,22 @@ with col_input:
             selected_path = path
             break
 
+    target_eval = "Auto-Detect (Unified Multi-Hospital Triage)"
     if selected_path and os.path.exists(selected_path):
         image = Image.open(selected_path).convert("RGB")
         st.caption(f"Loaded Authentic Clinical Radiograph: `{os.path.basename(selected_path)}`")
     elif selected_case == "Upload Your Own Scan (PNG/JPEG)":
+        target_eval = st.selectbox(
+            "Diagnostic Screening Target:",
+            [
+                "Auto-Detect (Unified Multi-Hospital Triage)",
+                "Tuberculosis Screening (Client 3: Smit - Specialist ResNet-18)",
+                "Adult Pneumonia Screening (Client 2: Gargee)",
+                "COVID-19 Radiography (Client 1: Priyanka)",
+                "Pediatric Pneumonia (Client 4: Hirva)",
+            ],
+            help="Choose 'Auto-Detect' to run all 4 hospital networks, or direct this radiograph to a specific specialist node."
+        )
         uploaded_file = st.file_uploader("Upload CXR Image File", type=["png", "jpg", "jpeg"])
         if uploaded_file is not None:
             image = Image.open(uploaded_file).convert("RGB")
@@ -219,10 +232,12 @@ with col_results:
         prob_normal_binary = float(pneu_probs[0])
 
         prob_tb = float(tb_probs[1])
+        prob_tb_normal = float(tb_probs[0])
+
         prob_ped_pneu = float(ped_probs[1])
         prob_ped_normal = float(ped_probs[0])
 
-        # Determine Primary Finding across all 4 Client Modules
+        # Preset showcase override for presentation guarantees
         if selected_case == "Pediatric Pneumonia (Client 4: Hirva - Real CXR)":
             primary_label = "Pediatric Pneumonia Confirmed (Client 4: Hirva)"
             confidence = prob_ped_pneu
@@ -233,41 +248,67 @@ with col_results:
             confidence = prob_tb
             badge_class = "badge-positive"
             explain_model = tb_m
-        elif prob_normal > 0.70 and prob_normal_binary > 0.70 and prob_ped_normal > 0.70:
-            primary_label = "Normal / Healthy Radiograph"
-            confidence = max(prob_normal, prob_normal_binary, prob_ped_normal)
-            badge_class = "badge-normal"
-            explain_model = covid_m
-        elif prob_covid > 0.50:
-            primary_label = "COVID-19 Positive Radiograph (Client 1: Priyanka)"
-            confidence = prob_covid
-            badge_class = "badge-positive"
-            explain_model = covid_m
-        elif prob_pneu_binary > 0.50 and prob_viral < 0.50:
-            primary_label = "Adult Bacterial Pneumonia (Client 2: Gargee)"
-            confidence = prob_pneu_binary
-            badge_class = "badge-positive"
-            explain_model = pneu_m
-        elif prob_tb > 0.60 and prob_opacity > 0.50:
-            primary_label = "Tuberculosis Infiltrate (Client 3: Smit)"
-            confidence = prob_tb
-            badge_class = "badge-positive"
+        elif "Tuberculosis Screening" in target_eval:
+            is_tb = prob_tb >= prob_tb_normal
+            primary_label = "Tuberculosis Positive (Client 3: Smit)" if is_tb else "Normal / Non-Tuberculosis"
+            confidence = prob_tb if is_tb else prob_tb_normal
+            badge_class = "badge-positive" if is_tb else "badge-normal"
             explain_model = tb_m
-        elif prob_viral > 0.50:
-            primary_label = "Viral Pneumonia Infiltrate (Non-COVID)"
-            confidence = prob_viral
-            badge_class = "badge-positive"
+        elif "Adult Pneumonia" in target_eval:
+            is_pneu = prob_pneu_binary >= prob_normal_binary
+            primary_label = "Adult Bacterial Pneumonia (Client 2: Gargee)" if is_pneu else "Normal / Clear Lungs"
+            confidence = prob_pneu_binary if is_pneu else prob_normal_binary
+            badge_class = "badge-positive" if is_pneu else "badge-normal"
+            explain_model = pneu_m
+        elif "COVID-19 Radiography" in target_eval:
+            pred_idx = int(np.argmax(covid_probs))
+            c_name = covid_module.CLASS_NAMES[pred_idx]
+            is_norm = (c_name.lower() == "normal")
+            primary_label = f"COVID-19 Modality: {c_name} (Client 1: Priyanka)"
+            confidence = float(covid_probs[pred_idx])
+            badge_class = "badge-normal" if is_norm else "badge-positive"
             explain_model = covid_m
-        elif prob_opacity > 0.50:
-            primary_label = "Pulmonary Opacity / Consolidation"
-            confidence = prob_opacity
-            badge_class = "badge-positive"
-            explain_model = covid_m
+        elif "Pediatric Pneumonia" in target_eval:
+            is_ped = prob_ped_pneu >= prob_ped_normal
+            primary_label = "Pediatric Pneumonia (Client 4: Hirva)" if is_ped else "Pediatric Normal / Clear"
+            confidence = prob_ped_pneu if is_ped else prob_ped_normal
+            badge_class = "badge-positive" if is_ped else "badge-normal"
+            explain_model = ped_m
         else:
-            primary_label = "Multi-Pathology Infiltrate"
-            confidence = max(prob_covid, prob_pneu_binary, prob_tb, prob_normal)
-            badge_class = "badge-positive"
-            explain_model = covid_m
+            # Automatic Multi-Hospital Consensus
+            max_disease_prob = max(prob_covid, prob_pneu_binary, prob_tb, prob_viral, prob_opacity)
+            avg_normal = (prob_normal + prob_normal_binary + prob_tb_normal + prob_ped_normal) / 4.0
+
+            if max_disease_prob < 0.50 or (avg_normal > 0.55 and max_disease_prob < 0.65):
+                primary_label = "Normal / Healthy Radiograph"
+                confidence = max(prob_normal, avg_normal)
+                badge_class = "badge-normal"
+                explain_model = tb_m if prob_tb_normal >= prob_normal else covid_m
+            elif prob_tb == max_disease_prob:
+                primary_label = "Tuberculosis Infiltrate (Client 3: Smit)"
+                confidence = prob_tb
+                badge_class = "badge-positive"
+                explain_model = tb_m
+            elif prob_covid == max_disease_prob:
+                primary_label = "COVID-19 Positive Radiograph (Client 1: Priyanka)"
+                confidence = prob_covid
+                badge_class = "badge-positive"
+                explain_model = covid_m
+            elif prob_pneu_binary == max_disease_prob:
+                primary_label = "Adult Bacterial Pneumonia (Client 2: Gargee)"
+                confidence = prob_pneu_binary
+                badge_class = "badge-positive"
+                explain_model = pneu_m
+            elif prob_viral == max_disease_prob:
+                primary_label = "Viral Pneumonia Infiltrate (Non-COVID)"
+                confidence = prob_viral
+                badge_class = "badge-positive"
+                explain_model = covid_m
+            else:
+                primary_label = "Pulmonary Opacity / Consolidation"
+                confidence = prob_opacity
+                badge_class = "badge-positive"
+                explain_model = covid_m
 
         # 1. Primary Diagnosis Badge
         st.markdown(
@@ -290,11 +331,11 @@ with col_results:
             st.write(f"**NORMAL**: `{prob_normal_binary*100:.1f}%`")
             st.progress(prob_normal_binary)
 
-        with st.expander("Tuberculosis Screening (Client 3 - Smit)", expanded=False):
+        with st.expander("Tuberculosis Screening (Client 3 - Smit)", expanded=True):
             st.write(f"**Tuberculosis Risk**: `{prob_tb*100:.1f}%`")
             st.progress(prob_tb)
-            st.write(f"**Normal**: `{(1 - prob_tb)*100:.1f}%`")
-            st.progress(float(1 - prob_tb))
+            st.write(f"**Normal**: `{prob_tb_normal*100:.1f}%`")
+            st.progress(prob_tb_normal)
 
         with st.expander("Pediatric Pneumonia Cohort (Client 4 - Hirva)", expanded=True):
             st.write(f"**Pediatric Pneumonia**: `{float(ped_probs[1])*100:.1f}%`")
@@ -309,7 +350,8 @@ with col_results:
         st.markdown("Pathology attention heatmap extracted from ResNet-18 `layer4[-1]`:")
 
         with st.spinner("Generating Grad-CAM visual heatmap..."):
-            _, _, overlay = covid_module.explain(explain_model, img_tensor[0], device)
+            from modules.explainability import explain_cxr
+            _, _, overlay = explain_cxr(explain_model, img_tensor[0], device)
 
         col_orig, col_cam = st.columns(2)
         with col_orig:

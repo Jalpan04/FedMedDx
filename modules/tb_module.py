@@ -268,7 +268,7 @@ def evaluate(model: torch.nn.Module, val_loader: DataLoader, device: str, max_ba
 
 
 def explain(model: torch.nn.Module, image: torch.Tensor, device: str) -> Tuple[int, float, np.ndarray]:
-    """Generate Grad-CAM heatmap visualization."""
+    """Generate Grad-CAM heatmap visualization using native PyTorch."""
     model.to(device)
     model.eval()
     if image.dim() == 3:
@@ -276,24 +276,93 @@ def explain(model: torch.nn.Module, image: torch.Tensor, device: str) -> Tuple[i
     else:
         input_tensor = image.to(device)
 
-    with torch.no_grad():
-        logits = model(input_tensor)
+    activations, gradients = [], []
+    def fwd(module, inp, out): activations.append(out)
+    def bwd(module, grad_in, grad_out): gradients.append(grad_out[0])
+
+    target_layer = model.layer4[-1]
+    h1 = target_layer.register_forward_hook(fwd)
+    h2 = target_layer.register_full_backward_hook(bwd)
+
+    with torch.enable_grad():
+        x = input_tensor.clone().detach().to(device).requires_grad_(True)
+        logits = model(x)
         probs = torch.softmax(logits, dim=1)
         conf, pred = torch.max(probs, dim=1)
+        score = logits[0, pred.item()]
+        model.zero_grad()
+        score.backward()
+
+    h1.remove()
+    h2.remove()
 
     try:
-        from pytorch_grad_cam import GradCAM
-        from pytorch_grad_cam.utils.image import show_cam_on_image
-        target_layers = [model.layer4[-1]]
-        with GradCAM(model=model, target_layers=target_layers) as cam:
-            grayscale_cam = cam(input_tensor=input_tensor)
-            rgb_img = input_tensor[0].permute(1, 2, 0).detach().cpu().numpy()
-            rgb_img = (rgb_img - rgb_img.min()) / (rgb_img.max() - rgb_img.min() + 1e-8)
-            overlay = show_cam_on_image(rgb_img.astype(np.float32), grayscale_cam[0, :], use_rgb=True)
+        import matplotlib.pyplot as plt
+        act = activations[0].detach()
+        grad = gradients[0].detach()
+        weights = torch.mean(grad, dim=(2, 3), keepdim=True)
+        cam = torch.sum(weights * act, dim=1, keepdim=True)
+        cam = F.relu(cam)
+        cam = F.interpolate(cam, size=(224, 224), mode='bilinear', align_corners=False)
+        cam = cam.squeeze().cpu().numpy()
+        cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
+
+        rgb_img = input_tensor[0].permute(1, 2, 0).detach().cpu().numpy()
+        mean = np.array([0.485, 0.456, 0.406])
+        std = np.array([0.229, 0.224, 0.225])
+        rgb_img = np.clip(std * rgb_img + mean, 0, 1)
+
+        cmap = plt.get_cmap('jet')
+        heatmap = cmap(cam)[:, :, :3]
+        overlay = (np.clip(0.5 * heatmap + 0.5 * rgb_img, 0, 1) * 255).astype(np.uint8)
     except Exception:
         overlay = np.zeros((224, 224, 3), dtype=np.uint8)
 
     return pred.item(), conf.item(), overlay
+
+
+def generate_heatmap_figure(model: torch.nn.Module, val_loader: DataLoader, device: str, output_path: str = "tb_heatmap.png", num_samples: int = 4):
+    """Generate a multi-sample horizontal Grad-CAM figure matching the clinician presentation format."""
+    import matplotlib.pyplot as plt
+    import random
+    all_items = []
+    for images, targets in val_loader:
+        for i in range(len(images)):
+            all_items.append((images[i], targets[i].item()))
+    if not all_items:
+        print("No samples available to generate heatmap figure.")
+        return
+    samples = random.sample(all_items, min(num_samples, len(all_items)))
+
+    if not samples:
+        print("No samples available to generate heatmap figure.")
+        return
+
+    num_cols = len(samples)
+    fig, axes = plt.subplots(1, num_cols, figsize=(4.2 * num_cols, 4.2), dpi=300)
+    if num_cols == 1:
+        axes = [axes]
+
+    for idx, (img_tensor, true_label) in enumerate(samples):
+        pred_idx, conf, overlay = explain(model, img_tensor, device)
+        true_name = CLASS_NAMES[true_label].upper()
+        pred_name = CLASS_NAMES[pred_idx].upper()
+
+        axes[idx].imshow(overlay)
+        axes[idx].axis("off")
+        color = "#15803d" if pred_idx == true_label else "#b91c1c"
+        axes[idx].set_title(
+            f"True: {true_name}\nPred: {pred_name} ({conf * 100:.1f}%)",
+            fontsize=10.5,
+            fontweight="semibold",
+            color=color,
+            pad=8
+        )
+
+    plt.tight_layout()
+    plt.savefig(output_path, bbox_inches="tight", dpi=300)
+    plt.close()
+    print(f"---> Successfully saved formatted heatmap grid to: {output_path}")
 
 
 if __name__ == "__main__":
@@ -301,25 +370,21 @@ if __name__ == "__main__":
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {dev}")
     m = get_model()
+
+    # Load existing checkpoint if available
+    for cp in ["tb_model_checkpoint.pth", "checkpoints/tb_model_checkpoint.pth"]:
+        if os.path.exists(cp):
+            try:
+                m.load_state_dict(torch.load(cp, map_location=dev))
+                print(f"---> Loaded weights from checkpoint: {cp}")
+                break
+            except Exception:
+                pass
+
     parts = get_hospital_partitions(2, 0.5)
-    
-    # Train 1 round
-    s, c, l = train_one_round(m, parts[0][0], 1, dev)
-    
-    # Save the trained model weights and biases locally
-    checkpoint_path = "tb_model_checkpoint.pth"
-    torch.save(m.state_dict(), checkpoint_path)
-    print(f"\n---> Saved trained weights and biases to: {checkpoint_path}")
-    
-    # Evaluate
     loss, metrics = evaluate(m, parts[0][1], dev)
     print("TB Module Verification complete! Metrics:", metrics)
 
-    # Save checkpoint
     os.makedirs("checkpoints", exist_ok=True)
     torch.save(m.state_dict(), "checkpoints/tb_model_checkpoint.pth")
-    print("Saved checkpoint to checkpoints/tb_model_checkpoint.pth")
-
-    dummy_img = torch.randn(3, 224, 224)
-    p, conf, over = explain(m, dummy_img, dev)
-    print(f"Grad-CAM check: Pred={CLASS_NAMES[p]}, Confidence={conf:.4f}, Overlay shape={over.shape}")
+    generate_heatmap_figure(m, parts[0][1], dev, output_path="tb_heatmap.png", num_samples=4)

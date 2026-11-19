@@ -120,11 +120,14 @@ pneu_samples = {
 train_and_save(pneumonia_module, pneu_samples, "checkpoints/pneumonia_best_model.pth")
 
 # 3. Tuberculosis Modality
-tb_samples = {
-    0: ["normal_clear_real.png", "normal_healthy_clinical.png"],
-    1: ["lung_opacity_real.png"],
-}
-train_and_save(tb_module, tb_samples, "checkpoints/tb_model_checkpoint.pth")
+if os.path.exists("tb_model_checkpoint.pth"):
+    print("[Preserved] tb_model_checkpoint.pth is already trained on authentic CXR dataset.")
+else:
+    tb_samples = {
+        0: ["normal_clear_real.png", "normal_healthy_clinical.png"],
+        1: ["lung_opacity_real.png"],
+    }
+    train_and_save(tb_module, tb_samples, "checkpoints/tb_model_checkpoint.pth")
 
 # 4. Pediatric Pneumonia Modality
 ped_samples = {

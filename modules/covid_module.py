@@ -288,32 +288,13 @@ def evaluate(model: torch.nn.Module, val_loader: DataLoader, device: str, max_ba
 
 
 def explain(model: torch.nn.Module, image: torch.Tensor, device: str) -> Tuple[int, float, np.ndarray]:
-    """Generate Grad-CAM heatmap visualization."""
-    model.to(device)
-    model.eval()
-    if image.dim() == 3:
-        input_tensor = image.unsqueeze(0).to(device)
-    else:
-        input_tensor = image.to(device)
-
-    with torch.no_grad():
-        logits = model(input_tensor)
-        probs = torch.softmax(logits, dim=1)
-        conf, pred = torch.max(probs, dim=1)
-
+    """Generate Grad-CAM heatmap visualization using native PyTorch."""
     try:
-        from pytorch_grad_cam import GradCAM
-        from pytorch_grad_cam.utils.image import show_cam_on_image
-        target_layers = [model.layer4[-1]]
-        with GradCAM(model=model, target_layers=target_layers) as cam:
-            grayscale_cam = cam(input_tensor=input_tensor)
-            rgb_img = input_tensor[0].permute(1, 2, 0).detach().cpu().numpy()
-            rgb_img = (rgb_img - rgb_img.min()) / (rgb_img.max() - rgb_img.min() + 1e-8)
-            overlay = show_cam_on_image(rgb_img.astype(np.float32), grayscale_cam[0, :], use_rgb=True)
+        from modules.explainability import explain_cxr
+        return explain_cxr(model, image, device)
     except Exception:
-        overlay = np.zeros((224, 224, 3), dtype=np.uint8)
-
-    return pred.item(), conf.item(), overlay
+        from modules.tb_module import explain as tb_explain
+        return tb_explain(model, image, device)
 
 
 if __name__ == "__main__":
